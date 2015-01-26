@@ -328,8 +328,8 @@ config MTD_NAND_ATMEL
 	  on Atmel AT91 and AVR32 processors.
 
 config MTD_NAND_PXA3xx
-	tristate "NAND support on PXA3xx and Armada 370/XP"
-	depends on PXA3xx || ARCH_MMP || PLAT_ORION || COMPILE_TEST
+	tristate "NAND support on PXA3xx, Armada 370/XP and Marvell Berlin"
+	depends on PXA3xx || ARCH_MMP || PLAT_ORION || ARCH_BERLIN || COMPILE_TEST
 	help
 	  This enables the driver for the NAND flash device found on
 	  PXA3xx processors (NFCv1) and also on Armada 370/XP (NFCv2).
