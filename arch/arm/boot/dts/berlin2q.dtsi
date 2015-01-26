@@ -477,6 +477,19 @@
 			status = "disabled";
 		};
 
+		nand0: nand@f00000 {
+			compatible = "marvell,berlin2-nand";
+			reg = <0xf00000 0x10000>;
+			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&chip_clk CLKID_NFC>,
+				 <&chip_clk CLKID_NFC_ECC>;
+			clock-names = "nfc", "ecc";
+
+			#address-cells = <1>;
+
+			status = "disabled";
+		};
+
 		apb@fc0000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
