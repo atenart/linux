@@ -140,3 +140,28 @@
 &sata_phy {
 	status = "okay";
 };
+
+&soc_pinctrl {
+	nand_pmux: nand-pmux {
+		groups = "G0", "G1";
+		function = "nand";
+	};
+};
+
+&nand0 {
+	pinctrl-0 = <&nand_pmux>;
+	pinctrl-names = "default";
+
+	marvell,nand-enable-arbiter;
+	nand-ecc-strength = <48>;
+	nand-ecc-step-size = <1024>;
+
+	num-cs = <1>;
+
+	/*
+	 * Two kinds of BG2Q DMP are available: one with emmc and
+	 * one with a nand. The latter is not widespread. Because
+	 * of this, disable the nand by default.
+	 */
+	status = "disabled";
+};
