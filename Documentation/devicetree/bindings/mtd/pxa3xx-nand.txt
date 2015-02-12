@@ -11,6 +11,8 @@ Required properties:
 
 Optional properties:
 
+ - clocks:			phandle to the clocks
+ - clock-names:			"nfc" and "ecc"
  - dmas:			dma data channel, see dma.txt binding doc
  - marvell,nand-enable-arbiter:	Set to enable the bus arbiter
  - marvell,nand-keep-config:	Set to keep the NAND controller config as set
@@ -33,6 +35,8 @@ Example:
 		compatible = "marvell,pxa3xx-nand";
 		reg = <0x43100000 90>;
 		interrupts = <45>;
+		clocks = <&gateclk 11>;
+		clock-names = "nfc";
 		dmas = <&pdma 97 0>;
 		dma-names = "data";
 		#address-cells = <1>;
