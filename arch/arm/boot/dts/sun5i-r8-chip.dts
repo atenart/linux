@@ -65,6 +65,13 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	onewire {
+		compatible = "w1-gpio";
+		gpios = <&pio 3 2 GPIO_ACTIVE_HIGH>; /* PD2 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&chip_w1_pin>;
+	};
+
 	/*
 	 * This is actually an active-low reset line for the WLAN
 	 * part of the WiFi/BT CHIP.
@@ -196,6 +203,13 @@
 		allwinner,function = "gpio_in";
 		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
+	chip_w1_pin: chip_w1_pin@0 {
+		allwinner,pins = "PD2";
+		allwinner,function = "gpio_in";
+	        allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+	        allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 	};
 };
 
