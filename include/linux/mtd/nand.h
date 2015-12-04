@@ -359,6 +359,11 @@ struct jedec_ecc_info {
 
 /* JEDEC features */
 #define JEDEC_FEATURE_16_BIT_BUS	(1 << 0)
+/*
+ * Number of JEDEC additional parameter pages to try reading,
+ * when the three mandatory first pages are not valid.
+ */
+#define JEDEC_ADNL_PARAM_PAGES		10
 
 struct nand_jedec_params {
 	/* rev info and features block */

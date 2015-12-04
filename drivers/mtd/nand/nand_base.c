@@ -3392,6 +3392,37 @@ static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
 	return 1;
 }
 
+static int nand_flash_jedec_read_param(struct mtd_info *mtd,
+				       struct nand_chip *chip,
+				       struct nand_jedec_params *p)
+{
+	int i, match = 0;
+	char sig[] = "JESD";
+
+	for (i = 0; i < sizeof(*p); i++)
+		((uint8_t *)p)[i] = chip->read_byte(mtd);
+
+	/*
+	 * As described in the JEDEC standard a parameter page is present
+	 * if at least two out of the four bytes of the parameter page
+	 * signature ("JESD") are valid.
+	 */
+	for (i = 0; i < ARRAY_SIZE(p->sig); i++)
+		if (p->sig[i] == sig[i])
+			match++;
+
+	if (match < 2) {
+		pr_warn("Invalid JEDEC page\n");
+		return -EINVAL;
+	}
+
+	if (onfi_crc16(ONFI_CRC_BASE, (uint8_t *)p, 510) ==
+			le16_to_cpu(p->crc))
+		return 0;
+
+	return -EAGAIN;
+}
+
 /*
  * Check if the NAND chip is JEDEC compliant, returns 1 if it is, 0 otherwise.
  */
@@ -3400,8 +3431,7 @@ static int nand_flash_detect_jedec(struct mtd_info *mtd, struct nand_chip *chip,
 {
 	struct nand_jedec_params *p = &chip->jedec_params;
 	struct jedec_ecc_info *ecc;
-	int val;
-	int i, j;
+	int val, i, ret = 0;
 
 	/* Try JEDEC for unknown chip or LP */
 	chip->cmdfunc(mtd, NAND_CMD_READID, 0x40, -1);
@@ -3411,16 +3441,18 @@ static int nand_flash_detect_jedec(struct mtd_info *mtd, struct nand_chip *chip,
 		return 0;
 
 	chip->cmdfunc(mtd, NAND_CMD_PARAM, 0x40, -1);
-	for (i = 0; i < 3; i++) {
-		for (j = 0; j < sizeof(*p); j++)
-			((uint8_t *)p)[j] = chip->read_byte(mtd);
-
-		if (onfi_crc16(ONFI_CRC_BASE, (uint8_t *)p, 510) ==
-				le16_to_cpu(p->crc))
+	for (i = 0; i < 3; i++)
+		if (!nand_flash_jedec_read_param(mtd, chip, p))
 			break;
+
+	/* Try reading additional parameter pages if none was found */
+	if (i == 3) {
+		do {
+			ret = nand_flash_jedec_read_param(mtd, chip, p);
+		} while (ret == -EAGAIN && i++ < JEDEC_ADNL_PARAM_PAGES + 3);
 	}
 
-	if (i == 3) {
+	if (ret) {
 		pr_err("Could not find valid JEDEC parameter page; aborting\n");
 		return 0;
 	}
