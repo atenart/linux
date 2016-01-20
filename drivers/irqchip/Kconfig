@@ -60,6 +60,12 @@ config ARM_VIC_NR
 	  The maximum number of VICs available in the system, for
 	  power management.
 
+config ALPINE_MSI
+	bool
+	depends on PCI && PCI_MSI
+	select GENERIC_IRQ_CHIP
+	select PCI_MSI_IRQ_DOMAIN
+
 config ATMEL_AIC_IRQ
 	bool
 	select GENERIC_IRQ_CHIP
