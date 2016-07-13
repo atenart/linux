@@ -1,0 +1,11 @@
+if ARCH_ALPINE
+
+config ALPINE_UDMA
+	bool "Alpine UDMA engine"
+	default ARCH_ALPINE
+	help
+	  Say y here to enable the Alpine Universal DMA support. This UDMA
+	  interfaces with the i/o fabric through a PCI endpoint for each
+	  i/o fabric bus.
+
+endif
