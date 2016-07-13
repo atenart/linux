@@ -1,0 +1,29 @@
+#
+# Annapurna Labs driver configuration
+#
+
+config NET_VENDOR_ALPINE
+	bool "Annapurna Labs devices"
+
+if NET_VENDOR_ALPINE
+
+config NET_AL_ETH
+	tristate "Annapurna Labs unified 1G/10G Ethernet driver"
+	depends on PCI && INET
+	depends on ALPINE_UDMA
+	select PHYLIB
+	help
+	  This is the driver supports both standard and advanced Annapurna Labs
+	  1G and 10G Ethernet controllers.
+
+if NET_AL_ETH
+
+config NET_AL_ETH_NO_MSIX
+	bool "Disable MSI-X"
+	help
+	  Do not use the MSI-X feature in the Annapurna Labs unified
+	  1G/10G Ethernet driver.
+
+endif
+
+endif
