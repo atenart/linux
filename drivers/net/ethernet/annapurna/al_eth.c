@@ -2480,10 +2480,46 @@ static u32 al_eth_get_rxfh_indir_size(struct net_device *netdev)
 	return AL_ETH_RX_RSS_TABLE_SIZE;
 }
 
+static void al_eth_get_wol(struct net_device *netdev,
+			   struct ethtool_wolinfo *wol)
+{
+	struct al_eth_adapter *adapter = netdev_priv(netdev);
+
+	wol->wolopts = adapter->wol;
+
+	if (adapter->phydev && adapter->mdio_bus) {
+		phy_ethtool_get_wol(adapter->phydev, wol);
+		wol->supported |= WAKE_PHY;
+		return;
+	}
+
+	wol->supported |= WAKE_UCAST | WAKE_MCAST | WAKE_BCAST;
+}
+
+static int al_eth_set_wol(struct net_device *netdev,
+			  struct ethtool_wolinfo *wol)
+{
+	struct al_eth_adapter *adapter = netdev_priv(netdev);
+
+	if (wol->wolopts & (WAKE_ARP | WAKE_MAGICSECURE))
+		return -EOPNOTSUPP;
+
+	adapter->wol = wol->wolopts;
+
+	if (adapter->phydev && adapter->mdio_bus)
+		return phy_ethtool_set_wol(adapter->phydev, wol);
+
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
+
+	return 0;
+}
+
 static const struct ethtool_ops al_eth_ethtool_ops = {
 	.get_settings		= al_eth_get_settings,
 	.set_settings		= al_eth_set_settings,
 	.get_drvinfo		= al_eth_get_drvinfo,
+	.get_wol		= al_eth_get_wol,
+	.set_wol		= al_eth_set_wol,
 	.get_msglevel		= al_eth_get_msglevel,
 	.set_msglevel		= al_eth_set_msglevel,
 
@@ -2987,7 +3023,36 @@ static int al_eth_resume(struct pci_dev *pdev)
 
 	pci_wake_from_d3(pdev, false);
 
+	al_eth_wol_disable(&adapter->hw_adapter);
+
 	netif_device_attach(netdev);
+
+	return 0;
+}
+
+static int al_eth_wol_config(struct al_eth_adapter *adapter)
+{
+	struct al_eth_wol_params wol = {0};
+
+	if (adapter->wol & WAKE_UCAST) {
+		wol.int_mask = AL_ETH_WOL_INT_UNICAST;
+		wol.forward_mask = AL_ETH_WOL_FWRD_UNICAST;
+	}
+
+	if (adapter->wol & WAKE_MCAST) {
+		wol.int_mask = AL_ETH_WOL_INT_MULTICAST;
+		wol.forward_mask = AL_ETH_WOL_FWRD_MULTICAST;
+	}
+
+	if (adapter->wol & WAKE_BCAST) {
+		wol.int_mask = AL_ETH_WOL_INT_BROADCAST;
+		wol.forward_mask = AL_ETH_WOL_FWRD_BROADCAST;
+	}
+
+	if (wol.int_mask != 0) {
+		al_eth_wol_enable(&adapter->hw_adapter, &wol);
+		return 1;
+	}
 
 	return 0;
 }
@@ -2996,8 +3061,12 @@ static int al_eth_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct al_eth_adapter *adapter = pci_get_drvdata(pdev);
 
-	pci_wake_from_d3(pdev, false);
-	pci_set_power_state(pdev, PCI_D3hot);
+	if (al_eth_wol_config(adapter)) {
+		pci_prepare_to_sleep(pdev);
+	} else {
+		pci_wake_from_d3(pdev, false);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
 
 	return 0;
 }

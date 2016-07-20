@@ -1151,6 +1151,33 @@ struct al_eth_wol_params {
 	u16 int_mask;
 };
 
+/*
+ * enable the wol mechanism
+ * set what type of packets will wake up the system and what type of packets
+ * neet to forward after the system is up
+ *
+ * beside this function wol filter also need to be set by
+ * calling al_eth_filter_config with AL_ETH_RFW_FILTER_WOL
+ *
+ * @param adapter pointer to the private structure
+ * @param wol the parameters needed to configure the wol
+ *
+ * @return 0 on success. otherwise on failure.
+ */
+int al_eth_wol_enable(
+		struct al_hw_eth_adapter *adapter,
+		struct al_eth_wol_params *wol);
+
+/*
+ * Disable the WoL mechnism.
+ *
+ * @param adapter pointer to the private structure
+ *
+ * @return 0 on success. otherwise on failure.
+ */
+int al_eth_wol_disable(
+		struct al_hw_eth_adapter *adapter);
+
 enum AL_ETH_TX_GCP_ALU_OPSEL {
 	AL_ETH_TX_GCP_ALU_L3_OFFSET			= 0,
 	AL_ETH_TX_GCP_ALU_OUTER_L3_OFFSET		= 1,

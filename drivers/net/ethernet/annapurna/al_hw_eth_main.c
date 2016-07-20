@@ -2422,6 +2422,7 @@ void al_eth_fwd_priority_table_set(struct al_hw_eth_adapter *adapter, u8 prio, u
 	AL_ETH_RFW_FILTER_VLAN_VID | \
 	AL_ETH_RFW_FILTER_CTRL_TABLE | \
 	AL_ETH_RFW_FILTER_PROT_INDEX | \
+	AL_ETH_RFW_FILTER_WOL | \
 	AL_ETH_RFW_FILTER_PARSE)
 
 /* Configure the receive filters */
@@ -2989,6 +2990,87 @@ int al_eth_board_params_get(void __iomem *mac_base, struct al_eth_board_params *
 
 	params->gpio_sfp_present = (reg & AL_HW_ETH_GPIO_SFP_PRESENT_MASK) >>
 			AL_HW_ETH_GPIO_SFP_PRESENT_SHIFT;
+
+	return 0;
+}
+
+/* Wake-On-Lan (WoL) */
+static inline void al_eth_byte_arr_to_reg(u32 *reg, u8 *arr,
+					  unsigned int num_bytes)
+{
+	u32 mask = 0xff;
+	unsigned int i;
+
+	WARN_ON(num_bytes > 4);
+
+	*reg = 0;
+
+	for (i = 0 ; i < num_bytes ; i++) {
+		*reg &= ~mask;
+		*reg |= (arr[i] << (sizeof(u8) * i)) & mask;
+		mask = mask << sizeof(u8);
+	}
+}
+
+int al_eth_wol_enable(struct al_hw_eth_adapter *adapter,
+		      struct al_eth_wol_params *wol)
+{
+	u32 reg = 0;
+
+	if (wol->int_mask & AL_ETH_WOL_INT_MAGIC_PSWD) {
+		WARN_ON(!wol->pswd);
+
+		al_eth_byte_arr_to_reg(&reg, &wol->pswd[0], 4);
+		writel(reg, adapter->ec_regs_base + AL_EC_WOL_MAGIC_PSWD_L);
+
+		al_eth_byte_arr_to_reg(&reg, &wol->pswd[4], 2);
+		writel(reg, adapter->ec_regs_base + AL_EC_WOL_MAGIC_PSWD_H);
+	}
+
+	if (wol->int_mask & AL_ETH_WOL_INT_IPV4) {
+		WARN_ON(!wol->ipv4);
+
+		al_eth_byte_arr_to_reg(&reg, &wol->ipv4[0], 4);
+		writel(reg, adapter->ec_regs_base + AL_EC_WOL_IPV4_DIP);
+	}
+
+	if (wol->int_mask & AL_ETH_WOL_INT_IPV6) {
+		WARN_ON(!wol->ipv6);
+
+		al_eth_byte_arr_to_reg(&reg, &wol->ipv6[0], 4);
+		writel(reg, adapter->ec_regs_base + AL_EC_WOL_IPV6_DIP_WORD0);
+
+		al_eth_byte_arr_to_reg(&reg, &wol->ipv6[4], 4);
+		writel(reg, adapter->ec_regs_base + AL_EC_WOL_IPV6_DIP_WORD1);
+
+		al_eth_byte_arr_to_reg(&reg, &wol->ipv6[8], 4);
+		writel(reg, adapter->ec_regs_base + AL_EC_WOL_IPV6_DIP_WORD2);
+
+		al_eth_byte_arr_to_reg(&reg, &wol->ipv6[12], 4);
+		writel(reg, adapter->ec_regs_base + AL_EC_WOL_IPV6_DIP_WORD3);
+	}
+
+	if (wol->int_mask &
+	    (AL_ETH_WOL_INT_ETHERTYPE_BC | AL_ETH_WOL_INT_ETHERTYPE_DA)) {
+		reg = ((u32)wol->ethr_type2 << 16);
+		reg |= wol->ethr_type1;
+
+		writel(reg, adapter->ec_regs_base + AL_EC_WOL_ETHERTYPE);
+	}
+
+	/* make sure we dont forwarding packets without interrupt */
+	WARN_ON((wol->forward_mask | wol->int_mask) != wol->int_mask);
+
+	reg = ((u32)wol->forward_mask << 16);
+	reg |= wol->int_mask;
+	writel(reg, adapter->ec_regs_base + AL_EC_WOL_WOL_EN);
+
+	return 0;
+}
+
+int al_eth_wol_disable(struct al_hw_eth_adapter *adapter)
+{
+	writel(0, adapter->ec_regs_base + AL_EC_WOL_WOL_EN);
 
 	return 0;
 }
