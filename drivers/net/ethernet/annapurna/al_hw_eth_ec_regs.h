@@ -86,4 +86,15 @@
 /* Threshold high */
 #define EC_EFC_RX_FIFO_HYST_TH_HIGH_SHIFT 16
 
+/* Use Ethernet controller Tx FIFO empty status for EEE control */
+#define EC_EEE_CFG_E_USE_EC_TX_FIFO      BIT(2)
+/* Use Ethernet controller Rx FIFO empty status for EEE control */
+#define EC_EEE_CFG_E_USE_EC_RX_FIFO      BIT(3)
+/* Enable Low power signalling. */
+#define EC_EEE_CFG_E_ENABLE              BIT(4)
+/* Mask output to MAC.  */
+#define EC_EEE_CFG_E_MASK_MAC_EEE        BIT(8)
+/* Mask output to stop MAC interface. */
+#define EC_EEE_CFG_E_MASK_EC_TMI_STOP    BIT(9)
+
 #endif /* __AL_HW_EC_REG_H */

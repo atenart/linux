@@ -858,6 +858,34 @@ int al_eth_filter_config(struct al_hw_eth_adapter *adapter, struct al_eth_filter
 
 int al_eth_flow_control_config(struct al_hw_eth_adapter *adapter, struct al_eth_flow_control_params *params);
 
+struct al_eth_eee_params {
+	u8 enable;
+	u32 tx_eee_timer; /* time in cycles the interface delays prior to entering eee state */
+	u32 min_interval; /* minimum interval in cycles between two eee states */
+	u32 stop_cnt; /* time in cycles to stop Tx mac i/f after getting out of eee state */
+	bool fast_wake; /* fast_wake is only applicable to 40/50G, otherwise the mode is deep_sleep */
+};
+
+/*
+ * configure EEE mode
+ * @param adapter pointer to the private structure.
+ * @param params pointer to the eee input parameters.
+ *
+ * @return return 0 on success. otherwise on failure.
+ */
+int al_eth_eee_config(struct al_hw_eth_adapter *adapter,
+		      struct al_eth_eee_params *params);
+
+/*
+ * get EEE configuration
+ * @param adapter pointer to the private structure.
+ * @param params pointer to the eee output parameters.
+ *
+ * @return return 0 on success. otherwise on failure.
+ */
+int al_eth_eee_get(struct al_hw_eth_adapter *adapter,
+		   struct al_eth_eee_params *params);
+
 /* enum for methods when updating systime using triggers */
 enum al_eth_pth_update_method {
 	AL_ETH_PTH_UPDATE_METHOD_SET = 0, /* Set the time in int/ext update time */

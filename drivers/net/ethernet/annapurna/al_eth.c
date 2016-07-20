@@ -2480,6 +2480,46 @@ static u32 al_eth_get_rxfh_indir_size(struct net_device *netdev)
 	return AL_ETH_RX_RSS_TABLE_SIZE;
 }
 
+static int al_eth_get_eee(struct net_device *netdev,
+			  struct ethtool_eee *edata)
+{
+	struct al_eth_adapter *adapter = netdev_priv(netdev);
+	struct al_eth_eee_params params;
+
+	if (!adapter->phydev)
+		return -EOPNOTSUPP;
+
+	al_eth_eee_get(&adapter->hw_adapter, &params);
+
+	edata->eee_enabled = params.enable;
+	edata->tx_lpi_timer = params.tx_eee_timer;
+
+	return phy_ethtool_get_eee(adapter->phydev, edata);
+}
+
+static int al_eth_set_eee(struct net_device *netdev,
+			  struct ethtool_eee *edata)
+{
+	struct al_eth_adapter *adapter = netdev_priv(netdev);
+	struct al_eth_eee_params params;
+	int ret;
+
+	if (!adapter->phydev)
+		return -EOPNOTSUPP;
+
+	ret = phy_init_eee(adapter->phydev, 1);
+	if (ret)
+		return ret;
+
+	params.enable = edata->eee_enabled;
+	params.tx_eee_timer = edata->tx_lpi_timer;
+	params.min_interval = 10;
+
+	al_eth_eee_config(&adapter->hw_adapter, &params);
+
+	return phy_ethtool_set_eee(adapter->phydev, edata);
+}
+
 static void al_eth_get_wol(struct net_device *netdev,
 			   struct ethtool_wolinfo *wol)
 {
@@ -2529,6 +2569,9 @@ static const struct ethtool_ops al_eth_ethtool_ops = {
 	.set_pauseparam		= al_eth_set_pauseparam,
 	.get_rxnfc		= al_eth_get_rxnfc,
 	.get_rxfh_indir_size    = al_eth_get_rxfh_indir_size,
+
+	.get_eee		= al_eth_get_eee,
+	.set_eee		= al_eth_set_eee,
 };
 
 static void al_eth_tx_csum(struct al_eth_ring *tx_ring,
