@@ -31,6 +31,8 @@
 struct armada8k_pcie {
 	struct dw_pcie *pci;
 	struct clk *clk;
+	struct phy *phys[4];
+	unsigned int phys_count;
 };
 
 #define PCIE_VENDOR_REGS_OFFSET		0x8000
@@ -170,7 +172,7 @@ static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 	struct dw_pcie *pci = pcie->pci;
 	struct pcie_port *pp = &pci->pp;
 	struct device *dev = &pdev->dev;
-	int ret;
+	int ret, i;
 
 	pp->root_bus_nr = -1;
 	pp->ops = &armada8k_pcie_host_ops;
@@ -188,6 +190,17 @@ static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 		return ret;
 	}
 
+	for (i = 0; i < pcie->phys_count; ++i) {
+		int error;
+
+		error = phy_power_on(pcie->phys[i]);
+		if (error) {
+			dev_warn(pci->dev, "unable to power on phy on lane "
+				 "%d\n", i);
+			return error;
+		}
+	}
+
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(dev, "failed to initialize host: %d\n", ret);
@@ -200,6 +213,47 @@ static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.link_up = armada8k_pcie_link_up,
 };
+
+static int armada8k_pcie_get_phys(struct platform_device *pdev,
+				  struct armada8k_pcie *pcie)
+{
+	int i;
+	int error;
+
+	error = of_property_read_u32(pdev->dev.of_node, "num-lanes",
+				     &pcie->phys_count);
+	if (error || !pcie->phys_count || pcie->phys_count > 4 ||
+	    pcie->phys_count == 3) {
+		dev_err(&pdev->dev, "bad/invalid num-lanes attribute.\n");
+		return -EINVAL;
+	}
+
+	dev_dbg(&pdev->dev, "pcie->phys_count = %d\n", pcie->phys_count);
+
+	for (i = 0; i < pcie->phys_count; ++i) {
+		char lane_buf[32];
+
+		snprintf(lane_buf, sizeof (lane_buf), "lane%d", i);
+
+		pcie->phys[i] = devm_of_phy_get(&pdev->dev, pdev->dev.of_node,
+						lane_buf);
+		if (IS_ERR(pcie->phys[i])) {
+			dev_err(&pdev->dev, "no phy for lane%d: %ld\n", i,
+				PTR_ERR(pcie->phys[i]));
+			return PTR_ERR(pcie->phys[i]);
+		}
+
+		error = phy_set_mode(pcie->phys[i], PHY_MODE_PCIE);
+		if (error) {
+			dev_warn(&pdev->dev, "assigned phy cannot work in PCIe "
+				 "mode: %d\n", error);
+			return error;
+		}
+
+		dev_dbg(&pdev->dev, "got phy for lane%d\n", i);
+	}
+	return 0;
+}
 
 static int armada8k_pcie_probe(struct platform_device *pdev)
 {
@@ -238,6 +292,10 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, pcie);
+
+	ret = armada8k_pcie_get_phys(pdev, pcie);
+	if (ret)
+		goto fail;
 
 	ret = armada8k_add_pcie_port(pcie, pdev);
 	if (ret)
