@@ -94,7 +94,7 @@
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";
 				reg = <0x12a200 0x10>;
-				clocks = <&cpm_syscon0 1 9>, <&cpm_syscon0 1 5>;
+				clocks = <&cpm_clk 1 9>, <&cpm_clk 1 5>;
 				status = "disabled";
 			};
 
