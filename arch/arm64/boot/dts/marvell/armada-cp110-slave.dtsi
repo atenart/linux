@@ -76,21 +76,24 @@
 				dma-coherent;
 
 				cps_eth0: eth0 {
-					interrupts = <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>;
+					interrupts = <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>;
 					port-id = <0>;
 					gop-port-id = <0>;
 					status = "disabled";
 				};
 
 				cps_eth1: eth1 {
-					interrupts = <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>;
+					interrupts = <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 291 IRQ_TYPE_LEVEL_HIGH>;
 					port-id = <1>;
 					gop-port-id = <2>;
 					status = "disabled";
 				};
 
 				cps_eth2: eth2 {
-					interrupts = <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>;
+					interrupts = <GIC_SPI 263 IRQ_TYPE_LEVEL_HIGH>,
+						     <GIC_SPI 290 IRQ_TYPE_LEVEL_HIGH>;
 					port-id = <2>;
 					gop-port-id = <3>;
 					status = "disabled";
