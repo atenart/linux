@@ -97,6 +97,13 @@
 				};
 			};
 
+			cps_comphy: phy@120000 {
+				compatible = "marvell,comphy-cp110";
+				reg = <0x120000 0x6000>;
+				marvell,system-controller = <&cps_syscon0>;
+				#phy-cells = <1>;
+			};
+
 			cps_mdio: mdio@12a200 {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -116,7 +123,7 @@
 
 			cps_syscon0: system-controller@440000 {
 				compatible = "syscon", "simple-mfd";
-				reg = <0x440000 0x1000>;
+				reg = <0x440000 0x2000>;
 
 				cps_clk: clock {
 					compatible = "marvell,cp110-clock";

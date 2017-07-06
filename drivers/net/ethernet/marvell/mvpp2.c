@@ -29,6 +29,7 @@
 #include <linux/of_device.h>
 #include <linux/phy.h>
 #include <linux/phy/phy.h>
+#include <linux/phy/mvebu_comphy.h>
 #include <linux/clk.h>
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
@@ -844,6 +845,7 @@ struct mvpp2_port {
 
 	phy_interface_t phy_interface;
 	struct device_node *phy_node;
+	struct phy *comphy;
 	unsigned int link;
 	unsigned int duplex;
 	unsigned int speed;
@@ -4354,6 +4356,35 @@ invalid_conf:
 	return -EINVAL;
 }
 
+static int mvpp22_comphy_init(struct mvpp2_port *port)
+{
+	enum mvebu_comphy_mode mode = COMPHY_UNUSED;
+
+	if (!port->comphy)
+		return 0;
+
+	switch (port->gop_id) {
+	case 0:
+		if (port->phy_interface == PHY_INTERFACE_MODE_10GKR)
+			mode = COMPHY_10GKR;
+		else if (port->phy_interface == PHY_INTERFACE_MODE_SGMII)
+			mode = COMPHY_SGMII_P0;
+		break;
+	case 2:
+		if (port->phy_interface == PHY_INTERFACE_MODE_SGMII)
+			mode = COMPHY_SGMII_P1;
+		break;
+	case 3:
+		mode = COMPHY_SGMII_P2;
+		break;
+	}
+
+	if (mode == COMPHY_UNUSED)
+		return -EINVAL;
+
+	return phy_set_mode(port->comphy, mode);
+}
+
 static void mvpp2_port_mii_gmac_configure_mode(struct mvpp2_port *port)
 {
 	u32 val;
@@ -6131,6 +6162,9 @@ static void mvpp2_stop_dev(struct mvpp2_port *port)
 	mvpp2_egress_disable(port);
 	mvpp2_port_disable(port);
 	phy_stop(ndev->phydev);
+
+	if (port->priv->hw_version == MVPP22 && port->comphy)
+		phy_power_off(port->comphy);
 }
 
 static int mvpp2_check_ringparam_valid(struct net_device *dev,
@@ -6271,6 +6305,12 @@ static int mvpp2_open(struct net_device *dev)
 
 	/* In default link is down */
 	netif_carrier_off(port->dev);
+
+	if (port->priv->hw_version == MVPP22) {
+		err = mvpp22_comphy_init(port);
+		if (err)
+			goto err_free_irq;
+	}
 
 	err = mvpp2_phy_connect(port);
 	if (err < 0)
@@ -6755,6 +6795,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 			    struct mvpp2 *priv)
 {
 	struct device_node *phy_node;
+	struct phy *comphy;
 	struct mvpp2_port *port;
 	struct mvpp2_port_pcpu *port_pcpu;
 	struct net_device *dev;
@@ -6783,6 +6824,15 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		dev_err(&pdev->dev, "incorrect phy mode\n");
 		err = phy_mode;
 		goto err_free_netdev;
+	}
+
+	comphy = devm_of_phy_get(&pdev->dev, port_node, NULL);
+	if (IS_ERR(comphy)) {
+		if (PTR_ERR(comphy) == -EPROBE_DEFER) {
+			err = -EPROBE_DEFER;
+			goto err_free_netdev;
+		}
+		comphy = NULL;
 	}
 
 	if (of_property_read_u32(port_node, "port-id", &id)) {
@@ -6816,6 +6866,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 
 	port->phy_node = phy_node;
 	port->phy_interface = phy_mode;
+	port->comphy = comphy;
 
 	if (priv->hw_version == MVPP21) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 2 + id);

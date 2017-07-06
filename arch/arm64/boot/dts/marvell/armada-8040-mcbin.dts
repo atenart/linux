@@ -151,6 +151,7 @@
 	status = "okay";
 	phy = <&ge_phy>;
 	phy-mode = "sgmii";
+	phys = <&cps_comphy 0>;
 };
 
 &cps_sata0 {
@@ -198,11 +199,13 @@
 &cpm_eth0 {
 	status = "okay";
 	phy = <&phy0>;
-	phy-mode = "sgmii";
+	phy-mode = "10gbase-kr";
+	phys = <&cpm_comphy 4>;
 };
 
 &cps_eth0 {
 	status = "okay";
 	phy = <&phy1>;
-	phy-mode = "10gbase-kr";
+	phy-mode = "sgmii";
+	phys = <&cps_comphy 4>;
 };

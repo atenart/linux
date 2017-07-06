@@ -115,6 +115,15 @@ config PHY_PXA_28NM_USB2
 
 	  To compile this driver as a module, choose M here.
 
+config PHY_MVEBU_COMPHY
+	tristate "Marvell comphy driver"
+	depends on ARCH_MVEBU && OF
+	select GENERIC_PHY
+	help
+	  The comphy driver allows to dynamically configure the SERDES
+	  lines on Marvell Armada 7k/8k SoCs. The SERDES lines can be used
+	  by various drivers (network, sata...).
+
 config PHY_MVEBU_SATA
 	def_bool y
 	depends on ARCH_DOVE || MACH_DOVE || MACH_KIRKWOOD
