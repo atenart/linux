@@ -4314,7 +4314,8 @@ static void mvpp22_gop_init_10gkr(struct mvpp2_port *port)
 	writel(val, mpcs + MVPP22_MPCS_CTRL);
 
 	val = readl(mpcs + MVPP22_MPCS_CLK_RESET);
-	val &= ~MVPP22_MPCS_CLK_RESET_DIV_RATIO(0x7);
+	val &= ~(MVPP22_MPCS_CLK_RESET_DIV_RATIO(0x7) | MAC_CLK_RESET_MAC |
+		 MAC_CLK_RESET_SD_RX | MAC_CLK_RESET_SD_TX);
 	val |= MVPP22_MPCS_CLK_RESET_DIV_RATIO(1);
 	writel(val, mpcs + MVPP22_MPCS_CLK_RESET);
 
