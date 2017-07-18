@@ -77,24 +77,27 @@
 				dma-coherent;
 
 				cps_eth0: eth0 {
-					interrupts = <ICU_GRP_NSR 39 IRQ_TYPE_LEVEL_HIGH>;
-					interrupt-names = "rx-shared";
+					interrupts = <ICU_GRP_NSR 39 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 129 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "rx-shared", "link";
 					port-id = <0>;
 					gop-port-id = <0>;
 					status = "disabled";
 				};
 
 				cps_eth1: eth1 {
-					interrupts = <ICU_GRP_NSR 40 IRQ_TYPE_LEVEL_HIGH>;
-					interrupt-names = "rx-shared";
+					interrupts = <ICU_GRP_NSR 40 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 128 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "rx-shared", "link";
 					port-id = <1>;
 					gop-port-id = <2>;
 					status = "disabled";
 				};
 
 				cps_eth2: eth2 {
-					interrupts = <ICU_GRP_NSR 41 IRQ_TYPE_LEVEL_HIGH>;
-					interrupt-names = "rx-shared";
+					interrupts = <ICU_GRP_NSR 41 IRQ_TYPE_LEVEL_HIGH>,
+						     <ICU_GRP_NSR 127 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-names = "rx-shared", "link";
 					port-id = <2>;
 					gop-port-id = <3>;
 					status = "disabled";
