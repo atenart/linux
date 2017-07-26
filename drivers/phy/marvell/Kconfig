@@ -59,3 +59,11 @@ config PHY_PXA_28NM_USB2
 	  The PHY driver will be used by Marvell udc/ehci/otg driver.
 
 	  To compile this driver as a module, choose M here.
+
+config PHY_UTMI_CP110
+	bool "Marvell CP110 UTMI PHY Driver"
+	depends on ARCH_MVEBU
+	depends on OF
+	help
+	  Enable this to support Marvell USB2.0 PHY driver for Marvell
+	  CP110-based SoCs (A7K and A8K).
