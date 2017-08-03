@@ -29,6 +29,7 @@ enum phy_mode {
 	PHY_MODE_USB_OTG,
 	PHY_MODE_SGMII,
 	PHY_MODE_10GKR,
+	PHY_MODE_SATA,
 };
 
 /**
