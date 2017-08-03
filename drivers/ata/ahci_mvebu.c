@@ -17,6 +17,8 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/phy/phy.h>
+
 #include "ahci.h"
 
 #define DRV_NAME "ahci-mvebu"
@@ -108,6 +110,22 @@ static int ahci_mvebu_probe(struct platform_device *pdev)
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "marvell,armada-8k-ahci")) {
+		/*
+		 * switch the CP110 PHYs mode to SATA mode before
+		 * ahci_platform_get_resources() tries to power them
+		 * on.
+		 */
+		int i;
+
+		for (i = 0; i < hpriv->nports; ++i) {
+			rc = phy_set_mode(hpriv->phys[i], PHY_MODE_SATA);
+			if (rc)
+				goto disable_resources;
+		}
+	}
+
 	rc = ahci_platform_enable_resources(hpriv);
 	if (rc)
 		return rc;
@@ -119,6 +137,11 @@ static int ahci_mvebu_probe(struct platform_device *pdev)
 			return -ENODEV;
 
 		ahci_mvebu_mbus_config(hpriv, dram);
+		ahci_mvebu_regret_option(hpriv);
+	}
+
+	if (of_device_is_compatible(pdev->dev.of_node,
+				    "marvell,armada-8k-ahci")) {
 		ahci_mvebu_regret_option(hpriv);
 	}
 
@@ -137,6 +160,7 @@ disable_resources:
 static const struct of_device_id ahci_mvebu_of_match[] = {
 	{ .compatible = "marvell,armada-380-ahci", },
 	{ .compatible = "marvell,armada-3700-ahci", },
+	{ .compatible = "marvell,armada-8k-ahci", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, ahci_mvebu_of_match);
