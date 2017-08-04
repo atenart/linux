@@ -11,10 +11,13 @@
 #include <linux/mbus.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/phy/phy.h>
+#include <linux/phy/phy-utmi-cp110.h>
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 
+#include "xhci-plat.h"
 #include "xhci-mvebu.h"
 
 #define USB3_MAX_WINDOWS	4
@@ -72,6 +75,51 @@ int xhci_mvebu_mbus_init_quirk(struct usb_hcd *hcd)
 	 * windows, and is therefore no longer useful.
 	 */
 	iounmap(base);
+
+	return 0;
+}
+
+static int xhci_mvebu_configure_phy(struct xhci_plat_priv *priv,
+				    struct device *dev, const char *phy_name,
+				    int phy_mode)
+{
+	struct phy *phy;
+	int error;
+
+	phy = devm_of_phy_get(dev, dev->of_node, phy_name);
+	if (IS_ERR(phy))
+		return PTR_ERR(phy);
+
+	error = phy_set_mode(phy, phy_mode);
+	if (error) {
+		dev_err(dev, "unable to set mode of '%s' phy: %d\n", phy_name,
+			error);
+		return error;
+	}
+
+	error = phy_power_on(phy);
+	if (error) {
+		dev_err(dev, "unable to power on '%s' phy: %d\n", phy_name,
+			error);
+		return error;
+	}
+	return 0;
+}
+
+/*
+ * on A8K only, configure COMPHY (USB3) and UTMI (USB2) phys.
+ */
+int xhci_mvebu_init_phys(struct usb_hcd *hcd)
+{
+	struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);;
+
+	if (hcd == xhci->shared_hcd)
+		xhci_mvebu_configure_phy(priv, hcd->self.controller,
+					 "usb3", PHY_MODE_USB_HOST);
+	else
+		xhci_mvebu_configure_phy(priv, hcd->self.controller,
+					 "usb2", UTMI_PHY_USB2_HOST);
 
 	return 0;
 }
