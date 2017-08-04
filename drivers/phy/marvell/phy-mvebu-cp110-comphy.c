@@ -161,6 +161,26 @@
 #define     MVEBU_COMPHY_TX_PRESET_INDEX(n)	((n) << 0)
 #define MVEBU_COMPHY_GEN1_S5(n)			(0xd38 + (n) * 0x1000)
 #define     MVEBU_COMPHY_GEN1_S5_ICP(n)		((n) << 0)
+#define MVEBU_COMPHY_LANE_CFG0(n)		(0xe00 + (n) * 0x1000)
+#define      MVEBU_COMPHY_LANE_CFG0_PRD_TXEEMPH0	BIT(0)
+#define MVEBU_COMPHY_LANE_STATUS0(n)		(0xe0c + (n) * 0x1000)
+#define      MVEBU_COMPHY_LANE_STATUS0_PCLK_EN	BIT(0)
+#define MVEBU_COMPHY_LANE_CFG4(n)		(0xe20 + (n) * 0x1000)
+#define      MVEBU_COMPHY_LANE_CFG4_DFE_CTRL(n)	((n) << 0)
+#define      MVEBU_COMPHY_LANE_CFG4_DFE_EN_SEL	BIT(3)
+#define      MVEBU_COMPHY_LANE_CFG4_DFE_OVER	BIT(6)
+#define      MVEBU_COMPHY_LANE_CFG4_DFE_SSC	BIT(7)
+#define MVEBU_COMPHY_PIPE_RST_CLK_CTRL(n)	(0xf04 + (n) * 0x1000)
+#define     MVEBU_COMPHY_PIPE_RST_CLK_CTRL_RST		BIT(0)
+#define     MVEBU_COMPHY_PIPE_RST_CLK_CTRL_FIXED_PCLK	BIT(2)
+#define     MVEBU_COMPHY_PIPE_RST_CLK_CTRL_PIPE_WIDTH	BIT(3)
+#define     MVEBU_COMPHY_PIPE_RST_CLK_CTRL_FREQ_SEL	BIT(9)
+#define MVEBU_COMPHY_MODE_CTRL(n)		(0xf08 + (n) * 0x1000)
+#define     MVEBU_COMPHY_MODE_CTRL_MODE_MARGIN	BIT(2)
+#define MVEBU_COMPHY_PIPE_CLK_SRC_LO(n)		(0xf0c + (n) * 0x1000)
+#define     MVEBU_COMPHY_PIPE_CLK_SRC_LO_PLL_RDY_DL(n)	((n) << 5)
+#define MVEBU_COMPHY_PIPE_PM_CTRL(n)		(0xf40 + (n) * 0x1000)
+#define     MVEBU_COMPHY_PIPE_PM_CTRL_RDLOZ_WAIT(n)	((n) << 0)
 
 /* Relative to priv->regmap */
 #define MVEBU_COMPHY_CONF1(n)			(0x1000 + (n) * 0x28)
@@ -168,10 +188,13 @@
 #define     MVEBU_COMPHY_CONF1_USB_PCIE		BIT(2)	/* 0: Ethernet/SATA */
 #define     MVEBU_COMPHY_CONF1_POR		BIT(14)
 #define     MVEBU_COMPHY_CONF1_CORE_RESET	BIT(13)
+#define     MVEBU_COMPHY_CONF1_PHY_MODE_USB	BIT(15) /* 1: USB */
 #define MVEBU_COMPHY_CONF6(n)			(0x1014 + (n) * 0x28)
 #define     MVEBU_COMPHY_CONF6_40B		BIT(18)
 #define MVEBU_COMPHY_SELECTOR			0x1140
 #define     MVEBU_COMPHY_SELECTOR_PHY(n)	((n) * 0x4)
+#define MVEBU_COMPHY_PIPE_SELECTOR		0x1144
+#define     MVEBU_COMPHY_PIPE_SELECTOR_PHY(n)	((n) * 0x4)
 
 #define MVEBU_COMPHY_LANES	6
 #define MVEBU_COMPHY_PORTS	3
@@ -425,6 +448,76 @@ static void mvebu_comphy_sata_init_reset(struct mvebu_comphy_lane *lane)
 	val = readl(priv->base + MVEBU_COMPHY_LOOPBACK(lane->id));
 	val &= ~MVEBU_COMPHY_LOOPBACK_DBUS_WIDTH(0x7);
 	val |= MVEBU_COMPHY_LOOPBACK_DBUS_WIDTH(0x2);
+	writel(val, priv->base + MVEBU_COMPHY_LOOPBACK(lane->id));
+}
+
+static void mvebu_comphy_usb3_init_reset(struct mvebu_comphy_lane *lane)
+{
+	struct mvebu_comphy_priv *priv = lane->priv;
+	u32 val;
+
+	/* RFU configurations - hard reset comphy */
+	regmap_read(priv->regmap, MVEBU_COMPHY_CONF1(lane->id), &val);
+	val &= ~MVEBU_COMPHY_CONF1_POR;
+	val &= ~MVEBU_COMPHY_CONF1_CORE_RESET;
+	val |= MVEBU_COMPHY_CONF1_PWRUP;
+	val |= MVEBU_COMPHY_CONF1_PHY_MODE_USB;
+	val |= MVEBU_COMPHY_CONF1_USB_PCIE;
+	regmap_write(priv->regmap, MVEBU_COMPHY_CONF1(lane->id), val);
+
+	/* release from hard reset */
+	regmap_read(priv->regmap, MVEBU_COMPHY_CONF1(lane->id), &val);
+	val |= MVEBU_COMPHY_CONF1_POR;
+	val |= MVEBU_COMPHY_CONF1_CORE_RESET;
+	regmap_write(priv->regmap, MVEBU_COMPHY_CONF1(lane->id), val);
+
+	/* wait until clocks are ready */
+	mdelay(1);
+
+	/* Set PIPE soft reset */
+	val = readl(priv->base + MVEBU_COMPHY_PIPE_RST_CLK_CTRL(lane->id));
+	val |= MVEBU_COMPHY_PIPE_RST_CLK_CTRL_RST;
+	val &= ~MVEBU_COMPHY_PIPE_RST_CLK_CTRL_FIXED_PCLK;
+	val &= ~MVEBU_COMPHY_PIPE_RST_CLK_CTRL_PIPE_WIDTH;
+	val &= ~MVEBU_COMPHY_PIPE_RST_CLK_CTRL_FREQ_SEL;
+	writel(val, priv->base + MVEBU_COMPHY_PIPE_RST_CLK_CTRL(lane->id));
+
+	/* Set PLL ready delay for 0x2 */
+	val = readl(priv->base + MVEBU_COMPHY_PIPE_CLK_SRC_LO(lane->id));
+	val &= ~MVEBU_COMPHY_PIPE_CLK_SRC_LO_PLL_RDY_DL(0x7);
+	val |= MVEBU_COMPHY_PIPE_CLK_SRC_LO_PLL_RDY_DL(0x2);
+	writel(val, priv->base + MVEBU_COMPHY_PIPE_CLK_SRC_LO(lane->id));
+
+	/* Set reference clock to come from group 1 - 25Mhz */
+	val = readl(priv->base + MVEBU_COMPHY_MISC_CTRL0(lane->id));
+	val &= ~MVEBU_COMPHY_MISC_CTRL0_REFCLK_SEL;
+	writel(val, priv->base + MVEBU_COMPHY_MISC_CTRL0(lane->id));
+
+	/* power and pll selection */
+	val = readl(priv->base + MVEBU_COMPHY_PWRPLL_CTRL(lane->id));
+	val &= ~(MVEBU_COMPHY_PWRPLL_CTRL_RFREQ(0x1f) |
+		 MVEBU_COMPHY_PWRPLL_PHY_MODE(0x7));
+	val |= MVEBU_COMPHY_PWRPLL_CTRL_RFREQ(0x2) |
+		MVEBU_COMPHY_PWRPLL_PHY_MODE(0x5);
+	writel(val, priv->base + MVEBU_COMPHY_PWRPLL_CTRL(lane->id));
+
+
+	/* Set the amount of time spent in the LoZ state - set for 0x7 */
+	val = readl(priv->base + MVEBU_COMPHY_PIPE_PM_CTRL(lane->id));
+	val &= ~MVEBU_COMPHY_PIPE_PM_CTRL_RDLOZ_WAIT(0xff);
+	val |= MVEBU_COMPHY_PIPE_PM_CTRL_RDLOZ_WAIT(0x7);
+	writel(val, priv->base + MVEBU_COMPHY_PIPE_PM_CTRL(lane->id));
+
+	/* Set max PHY generation setting - 5Gbps */
+	val = readl(priv->base + MVEBU_COMPHY_INTERFACE(lane->id));
+	val &= ~MVEBU_COMPHY_INTERFACE_GEN_MAX(0x3);
+	val |= MVEBU_COMPHY_INTERFACE_GEN_MAX(0x1);
+	writel(val, priv->base + MVEBU_COMPHY_INTERFACE(lane->id));
+
+	/* Set select data width 20Bit (SEL_BITS[2:0]) */
+	val = readl(priv->base + MVEBU_COMPHY_LOOPBACK(lane->id));
+	val &= ~MVEBU_COMPHY_LOOPBACK_DBUS_WIDTH(0x7);
+	val |= MVEBU_COMPHY_LOOPBACK_DBUS_WIDTH(0x1);
 	writel(val, priv->base + MVEBU_COMPHY_LOOPBACK(lane->id));
 }
 
@@ -842,6 +935,48 @@ static int mvebu_comphy_set_mode_sata(struct phy *phy)
 	return 0;
 }
 
+static int mvebu_comphy_set_mode_usb3(struct phy *phy)
+{
+	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
+	struct mvebu_comphy_priv *priv = lane->priv;
+	u32 val;
+
+	mvebu_comphy_usb3_init_reset(lane);
+
+	/* select de-emphasize 3.5db */
+	val = readl(priv->base + MVEBU_COMPHY_LANE_CFG0(lane->id));
+	val |= MVEBU_COMPHY_LANE_CFG0_PRD_TXEEMPH0;
+	writel(val, priv->base + MVEBU_COMPHY_LANE_CFG0(lane->id));
+
+	/* override tx margining from the MAC */
+	val = readl(priv->base + MVEBU_COMPHY_MODE_CTRL(lane->id));
+	val |= MVEBU_COMPHY_MODE_CTRL_MODE_MARGIN;
+	writel(val, priv->base + MVEBU_COMPHY_MODE_CTRL(lane->id));
+
+	/* Start analog paramters from ETP(HW) */
+	val = readl(priv->base + MVEBU_COMPHY_LANE_CFG4(lane->id));
+	val &= ~MVEBU_COMPHY_LANE_CFG4_DFE_CTRL(0x7);
+	val |= MVEBU_COMPHY_LANE_CFG4_DFE_CTRL(0x1);
+	val |= MVEBU_COMPHY_LANE_CFG4_DFE_OVER;
+	val |= MVEBU_COMPHY_LANE_CFG4_DFE_SSC;
+	writel(val, priv->base + MVEBU_COMPHY_LANE_CFG4(lane->id));
+
+	/* Release from PIPE soft reset */
+	val = readl(priv->base + MVEBU_COMPHY_PIPE_RST_CLK_CTRL(lane->id));
+	val &= ~MVEBU_COMPHY_PIPE_RST_CLK_CTRL_RST;
+	writel(val, priv->base + MVEBU_COMPHY_PIPE_RST_CLK_CTRL(lane->id));
+
+	/* wait for PLL ready */
+	readl_poll_timeout(priv->base + MVEBU_COMPHY_LANE_STATUS0(lane->id),
+			   val,
+			   val & MVEBU_COMPHY_LANE_STATUS0_PCLK_EN,
+			   1000, 150000);
+	if (!(val & MVEBU_COMPHY_LANE_STATUS0_PCLK_EN))
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
 static int mvebu_comphy_power_on(struct phy *phy)
 {
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
@@ -877,6 +1012,10 @@ static int mvebu_comphy_power_on(struct phy *phy)
 		break;
 	case PHY_MODE_SATA:
 		ret = mvebu_comphy_set_mode_sata(phy);
+		break;
+	case PHY_MODE_USB_HOST:
+	case PHY_MODE_USB_DEVICE:
+		ret = mvebu_comphy_set_mode_usb3(phy);
 		break;
 	default:
 		return -ENOTSUPP;
