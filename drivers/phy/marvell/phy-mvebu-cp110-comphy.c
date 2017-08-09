@@ -266,6 +266,8 @@ static const struct mvebu_comhy_conf mvebu_comphy_cp110_pipe_modes[] = {
 struct mvebu_comphy_priv {
 	void __iomem *base;
 	struct regmap *regmap;
+	struct regmap *sar_regmap;
+	struct regmap *cp_mgmt_regmap;
 	struct device *dev;
 	int modes[MVEBU_COMPHY_LANES];
 };
@@ -1105,6 +1107,19 @@ static int mvebu_comphy_probe(struct platform_device *pdev)
 						"marvell,system-controller");
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
+
+	priv->sar_regmap =
+		syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+						"marvell,sar");
+	if (IS_ERR(priv->sar_regmap))
+		return PTR_ERR(priv->sar_regmap);
+
+	priv->cp_mgmt_regmap =
+		syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+						"marvell,cp_mgmt");
+	if (IS_ERR(priv->cp_mgmt_regmap))
+		return PTR_ERR(priv->cp_mgmt_regmap);
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
 	if (!priv->base)
