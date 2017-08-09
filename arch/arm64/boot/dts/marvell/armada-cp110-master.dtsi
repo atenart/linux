@@ -103,6 +103,8 @@
 				marvell,system-controller = <&cpm_syscon0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				marvell,cp_mgmt = <&cpm_mgmt>;
+				marvell,sar = <&cpm_mgmt>;
 
 				cpm_comphy0: phy@0 {
 					reg = <0>;

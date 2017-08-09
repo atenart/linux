@@ -110,6 +110,9 @@
 				marvell,system-controller = <&cps_syscon0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				marvell,cp_mgmt = <&cps_mgmt>;
+				/* always use Master CP S@R */
+				marvell,sar = <&cpm_mgmt>;
 
 				cps_comphy0: phy@0 {
 					reg = <0>;
@@ -140,6 +143,7 @@
 					reg = <5>;
 					#phy-cells = <1>;
 				};
+
 			};
 
 			cps_mdio: mdio@12a200 {
