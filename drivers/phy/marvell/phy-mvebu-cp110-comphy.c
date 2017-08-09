@@ -93,13 +93,23 @@
 #define     MVEBU_COMPHY_LOOPBACK_DBUS_WIDTH(n)	((n) << 1)
 #define MVEBU_COMPHY_INTERFACE(n)		(0x894 + (n) * 0x1000)
 #define	    MVEBU_COMPHY_INTERFACE_GEN_MAX(n)	((n) << 10)
+#define     MVEBU_COMPHY_INTERFACE_DET_BYPASS	BIT(12)
+#define     MVEBU_COMPHY_INTERFACE_LINK_TRAIN	BIT(14)
 #define MVEBU_COMPHY_VDD_CAL0(n)		(0x908 + (n) * 0x1000)
 #define     MVEBU_COMPHY_VDD_CAL0_CONT_MODE	BIT(15)
 #define MVEBU_COMPHY_EXT_SELV(n)		(0x914 + (n) * 0x1000)
 #define     MVEBU_COMPHY_EXT_SELV_RX_SAMPL(n)	((n) << 5)
+#define MVEBU_COMPHY_PCIE_REG0(n)		(0x920 + (n) * 0x1000)
+#define     MVEBU_COMPHY_PCIE_REG0_IDLE_SYNC	BIT(12)
+#define     MVEBU_COMPHY_PCIE_REG0_SEL_BITS(n)	((n) << 13)
+#define MVEBU_COMPHY_LANE_ALIGN(n)		(0x924 + (n) * 0x1000)
+#define     MVEBU_COMPHY_LANE_ALIGN_BIT		BIT(12)
 #define MVEBU_COMPHY_MISC_CTRL0(n)		(0x93c + (n) * 0x1000)
-#define     MVEBU_COMPHY_MISC_CTRL0_ICP_FORCE	BIT(5)
-#define     MVEBU_COMPHY_MISC_CTRL0_REFCLK_SEL	BIT(10)
+#define     MVEBU_COMPHY_MISC_CTRL0_CLK100M_125M	BIT(4)
+#define     MVEBU_COMPHY_MISC_CTRL0_ICP_FORCE		BIT(5)
+#define     MVEBU_COMPHY_MISC_CTRL0_TXDCLK_2X		BIT(6)
+#define     MVEBU_COMPHY_MISC_CTRL0_CLK500M_EN		BIT(7)
+#define     MVEBU_COMPHY_MISC_CTRL0_REFCLK_SEL		BIT(10)
 #define MVEBU_COMPHY_RX_CTRL1(n)		(0x940 + (n) * 0x1000)
 #define     MVEBU_COMPHY_RX_CTRL1_RXCLK2X_SEL	BIT(11)
 #define     MVEBU_COMPHY_RX_CTRL1_CLK8T_EN	BIT(12)
@@ -126,6 +136,10 @@
 #define     MVEBU_COMPHY_PHASE_CTRL_OS_PH_OFF(n)	((n) << 0)
 #define     MVEBU_COMPHY_PHASE_CTRL_OS_PH_OFF_FORCE	BIT(7)
 #define     MVEBU_COMPHY_PHASE_CTRL_OS_PH_OFF_VALID	BIT(8)
+#define MVEBU_COMPHY_TX_TRAIN_CTRL(n)		(0xa6c + (n) * 0x1000)
+#define     MVEBU_COMPHY_TX_TRAIN_CTRL_G1	BIT(0)
+#define     MVEBU_COMPHY_TX_TRAIN_CTRL_GN1	BIT(1)
+#define     MVEBU_COMPHY_TX_TRAIN_CTRL_G0	BIT(2)
 #define MVEBU_COMPHY_FRAME_DETECT0(n)		(0xa14 + (n) * 0x1000)
 #define     MVEBU_COMPHY_FRAME_DETECT0_PATN(n)	((n) << 7)
 #define MVEBU_COMPHY_FRAME_DETECT3(n)		(0xa20 + (n) * 0x1000)
@@ -134,11 +148,27 @@
 #define     MVEBU_COMPHY_DME_ETH_MODE		BIT(7)
 #define MVEBU_COMPHY_TRAINING0(n)		(0xa68 + (n) * 0x1000)
 #define     MVEBU_COMPHY_TRAINING0_P2P_HOLD	BIT(15)
+#define MVEBU_COMPHY_TRAINING4(n)		(0xa78 + (n) * 0x1000)
+#define     MVEBU_COMPHY_TRAINING4_TIMER(n)	((n) << 0)
 #define MVEBU_COMPHY_TRAINING5(n)		(0xaa4 + (n) * 0x1000)
 #define	    MVEBU_COMPHY_TRAINING5_RX_TIMER(n)	((n) << 0)
+#define     MVEBU_COMPHY_TRAINING5_START_SQ_EN	BIT(11)
+#define     MVEBU_COMPHY_TRAINING5_FRM_DET_EN	BIT(12)
+#define     MVEBU_COMPHY_TRAINING5_FRM_LOCK_EN	BIT(13)
+#define     MVEBU_COMPHY_TRAINING5_WAIT_TIME_EN	BIT(14)
 #define MVEBU_COMPHY_TX_TRAIN_PRESET(n)		(0xb1c + (n) * 0x1000)
+#define     MVEBU_COMPHY_TX_TRAIN_CHK_INIT		BIT(4)
+#define     MVEBU_COMPHY_TX_TRAIN_COEF_FM_PIN_PCIE3	BIT(7)
 #define     MVEBU_COMPHY_TX_TRAIN_PRESET_16B_AUTO_EN	BIT(8)
 #define     MVEBU_COMPHY_TX_TRAIN_PRESET_PRBS11		BIT(9)
+#define MVEBU_COMPHY_CDR_CONTROL(n)			(0xc18 + (n) * 0x1000)
+#define     MVEBU_COMPHY_CDR_CONTROL_RX_MAX_DFE_ADAPT_1(n)	((n) << 12)
+#define     MVEBU_COMPHY_CDR_CONTROL_MAX_DFE_ADAPT_0(n)		((n) << 9)
+#define     MVEBU_COMPHY_CDR_CONTROL_MAX_DFE_ADAPT_1(n)		((n) << 6)
+#define MVEBU_COMPHY_TX_TRAINING11(n)	(0xc38 + (n) * 0x1000)
+#define     MVEBU_COMPHY_TX_TRAINING11_CHECK_MODE	BIT(6)
+#define     MVEBU_COMPHY_TX_TRAINING11_PRESET_NUM(n)	((n) << 10)
+#define     MVEBU_COMPHY_TX_TRAINING11_PRESET_EN	BIT(15)
 #define MVEBU_COMPHY_GEN1_S3(n)			(0xc40 + (n) * 0x1000)
 #define     MVEBU_COMPHY_GEN1_S3_FFE_CAP_SEL(n)		((n) << 0)
 #define     MVEBU_COMPHY_GEN1_S3_FFE_RES_SEL(n)		((n) << 4)
@@ -148,6 +178,8 @@
 #define     MVEBU_COMPHY_GEN1_S3_FFE_LOAD_RES_LVL(n)	((n) << 14)
 #define MVEBU_COMPHY_GEN1_S4(n)			(0xc44 + (n) * 0x1000)
 #define	    MVEBU_COMPHY_GEN1_S4_DFE_RES(n)	((n) << 8)
+#define MVEBU_COMPHY_GEN2_S4(n)			(0xc4c + (n) * 0x1000)
+#define	    MVEBU_COMPHY_GEN2_S4_DFE_RES(n)	((n) << 8)
 #define MVEBU_COMPHY_GEN3_S3(n)			(0xc50 + (n) * 0x1000)
 #define     MVEBU_COMPHY_GEN3_S3_FFE_CAP_SEL(n)		((n) << 0)
 #define     MVEBU_COMPHY_GEN3_S3_FFE_RES_SEL(n)		((n) << 4)
@@ -159,8 +191,14 @@
 #define     MVEBU_COMPHY_GEN3_S4_DFE_RES(n)	((n) << 8)
 #define MVEBU_COMPHY_TX_PRESET(n)		(0xc68 + (n) * 0x1000)
 #define     MVEBU_COMPHY_TX_PRESET_INDEX(n)	((n) << 0)
+#define MVEBU_COMPHY_DFE_CTRL(n)		(0xc70 + (n) * 0x1000)
+#define     MVEBU_COMPHY_DFE_CTRL_TX_MAX_DFE_ADAPT(n)	((n) << 14)
+#define MVEBU_COMPHY_DFE_CTRL_28(n)		(0xc9c + (n) * 0x1000)
+#define     MVEBU_COMPHY_DFE_CTRL_28_PIPE4	BIT(7)
 #define MVEBU_COMPHY_GEN1_S5(n)			(0xd38 + (n) * 0x1000)
 #define     MVEBU_COMPHY_GEN1_S5_ICP(n)		((n) << 0)
+#define MVEBU_COMPHY_GEN3_S5(n)			(0xd48 + (n) * 0x1000)
+#define     MVEBU_COMPHY_GEN3_S5_ICP(n)		((n) << 0)
 #define MVEBU_COMPHY_LANE_CFG0(n)		(0xe00 + (n) * 0x1000)
 #define      MVEBU_COMPHY_LANE_CFG0_PRD_TXEEMPH0	BIT(0)
 #define MVEBU_COMPHY_LANE_STATUS0(n)		(0xe0c + (n) * 0x1000)
@@ -170,6 +208,14 @@
 #define      MVEBU_COMPHY_LANE_CFG4_DFE_EN_SEL	BIT(3)
 #define      MVEBU_COMPHY_LANE_CFG4_DFE_OVER	BIT(6)
 #define      MVEBU_COMPHY_LANE_CFG4_DFE_SSC	BIT(7)
+#define MVEBU_COMPHY_EQ_CONFIG0(n)		(0xe9c + (n) * 0x1000)
+#define      MVEBU_COMPHY_EQ_CONFIG0_RC_MODE	BIT(12)
+#define MVEBU_COMPHY_LANE_EQ_CFG1(n)		(0xea0 + (n) * 0x1000)
+#define      MVEBU_COMPHY_LANE_EQ_CFG1_UPDATE_POLARITY	BIT(12)
+#define MVEBU_COMPHY_LANE_EQ_REMOTE_CFG(n)	(0xef8 + (n) * 0x1000)
+#define      MVEBU_COMPHY_LANE_EQ_REMOTE_CFG_DIRN_OVERRIDE	BIT(0)
+#define      MVEBU_COMPHY_LANE_EQ_REMOTE_CFG_ONLY_MODE		BIT(1)
+#define      MVEBU_COMPHY_LANE_EQ_REMOTE_CFG_PRESET_VECTOR(n)	((n) << 2)
 #define MVEBU_COMPHY_PIPE_RST_CLK_CTRL(n)	(0xf04 + (n) * 0x1000)
 #define     MVEBU_COMPHY_PIPE_RST_CLK_CTRL_RST		BIT(0)
 #define     MVEBU_COMPHY_PIPE_RST_CLK_CTRL_FIXED_PCLK	BIT(2)
@@ -178,7 +224,14 @@
 #define MVEBU_COMPHY_MODE_CTRL(n)		(0xf08 + (n) * 0x1000)
 #define     MVEBU_COMPHY_MODE_CTRL_MODE_MARGIN	BIT(2)
 #define MVEBU_COMPHY_PIPE_CLK_SRC_LO(n)		(0xf0c + (n) * 0x1000)
+#define     MVEBU_COMPHY_PIPE_CLK_SRC_LO_PERIOD_SEL		BIT(1)
+#define     MVEBU_COMPHY_PIPE_CLK_SRC_LO_PERIOD_SCALE(n)	((n) << 2)
 #define     MVEBU_COMPHY_PIPE_CLK_SRC_LO_PLL_RDY_DL(n)	((n) << 5)
+#define MVEBU_COMPHY_PIPE_CLK_SRC_HI(n)		(0xf10 + (n) * 0x1000)
+#define     MVEBU_COMPHY_PIPE_CLK_SRC_HI_LANE_START	BIT(0)
+#define     MVEBU_COMPHY_PIPE_CLK_SRC_HI_LANE_BREAK	BIT(1)
+#define     MVEBU_COMPHY_PIPE_CLK_SRC_HI_LANE_MASTER	BIT(2)
+#define     MVEBU_COMPHY_PIPE_CLK_SRC_HI_MODE_PIPE	BIT(7)
 #define MVEBU_COMPHY_PIPE_PM_CTRL(n)		(0xf40 + (n) * 0x1000)
 #define     MVEBU_COMPHY_PIPE_PM_CTRL_RDLOZ_WAIT(n)	((n) << 0)
 
@@ -195,6 +248,22 @@
 #define     MVEBU_COMPHY_SELECTOR_PHY(n)	((n) * 0x4)
 #define MVEBU_COMPHY_PIPE_SELECTOR		0x1144
 #define     MVEBU_COMPHY_PIPE_SELECTOR_PHY(n)	((n) * 0x4)
+#define MVEBU_COMPHY_SD_CTRL1			(0x1148)
+#define     MVEBU_COMPHY_SD_CTRL1_PHY0_3_MASK	0xffff
+#define     MVEBU_COMPHY_SD_CTRL1_PHY0_1_MASK	0x00ff
+#define     MVEBU_COMPHY_SD_CTRL1_PCIE_X2_EN	BIT(25)
+#define     MVEBU_COMPHY_SD_CTRL1_PCIE_X4_EN	BIT(24)
+
+
+/* Relative to priv->cp_mgmt_regmap */
+#define DEVICE_SAR0				0x200
+#define     DEV_SAR0_PCIE1_CLK_CP0		BIT(3)
+#define     DEV_SAR0_PCIE0_CLK_CP0		BIT(2)
+#define     DEV_SAR0_PCIE1_CLK_CP1		BIT(1)
+#define     DEV_SAR0_PCIE0_CLK_CP1		BIT(0)
+#define DEVICE_SAR1				0x204
+#define DFX_DEV_GEN_CTRL12			0x280
+#define     DFX_DEV_GEN_CTRL12_CLK_SRC(n)	((n) << 7)
 
 #define MVEBU_COMPHY_LANES	6
 #define MVEBU_COMPHY_PORTS	3
@@ -521,6 +590,125 @@ static void mvebu_comphy_usb3_init_reset(struct mvebu_comphy_lane *lane)
 	val &= ~MVEBU_COMPHY_LOOPBACK_DBUS_WIDTH(0x7);
 	val |= MVEBU_COMPHY_LOOPBACK_DBUS_WIDTH(0x1);
 	writel(val, priv->base + MVEBU_COMPHY_LOOPBACK(lane->id));
+}
+
+static void mvebu_comphy_pcie_init_reset(struct mvebu_comphy_lane *lane,
+					 int pcie_clk_config, int pcie_width)
+{
+	struct mvebu_comphy_priv *priv = lane->priv;
+	u32 val;
+
+	/* RFU configurations - hard reset comphy */
+	regmap_read(priv->regmap, MVEBU_COMPHY_CONF1(lane->id), &val);
+	val &= ~MVEBU_COMPHY_CONF1_POR;
+	val &= ~MVEBU_COMPHY_CONF1_CORE_RESET;
+	val &= ~MVEBU_COMPHY_CONF1_PHY_MODE_USB;
+	val |= MVEBU_COMPHY_CONF1_PWRUP;
+	val |= MVEBU_COMPHY_CONF1_USB_PCIE;
+	regmap_write(priv->regmap, MVEBU_COMPHY_CONF1(lane->id), val);
+
+	/* release from hard reset */
+	regmap_read(priv->regmap, MVEBU_COMPHY_CONF1(lane->id), &val);
+	val |= MVEBU_COMPHY_CONF1_POR;
+	val |= MVEBU_COMPHY_CONF1_CORE_RESET;
+	regmap_write(priv->regmap, MVEBU_COMPHY_CONF1(lane->id), val);
+
+	/* wait until clocks are ready */
+	mdelay(1);
+
+	/* Start comphy Configuration */
+	val = readl(priv->base + MVEBU_COMPHY_PIPE_RST_CLK_CTRL(lane->id));
+	val |= MVEBU_COMPHY_PIPE_RST_CLK_CTRL_RST;
+	val |= MVEBU_COMPHY_PIPE_RST_CLK_CTRL_FIXED_PCLK;
+	val &= ~MVEBU_COMPHY_PIPE_RST_CLK_CTRL_PIPE_WIDTH;
+	val &= ~MVEBU_COMPHY_PIPE_RST_CLK_CTRL_FREQ_SEL;
+	writel(val, priv->base + MVEBU_COMPHY_PIPE_RST_CLK_CTRL(lane->id));
+
+	/* Set PLL ready delay for 0x2 */
+	val = readl(priv->base + MVEBU_COMPHY_PIPE_CLK_SRC_LO(lane->id));
+	val &= ~MVEBU_COMPHY_PIPE_CLK_SRC_LO_PLL_RDY_DL(0x7);
+	val |= MVEBU_COMPHY_PIPE_CLK_SRC_LO_PLL_RDY_DL(0x2);
+	if (pcie_width > 1) {
+		val |= MVEBU_COMPHY_PIPE_CLK_SRC_LO_PERIOD_SEL;
+		val &= ~MVEBU_COMPHY_PIPE_CLK_SRC_LO_PERIOD_SCALE(0x3);
+		val |= MVEBU_COMPHY_PIPE_CLK_SRC_LO_PERIOD_SCALE(0x1);
+	}
+	writel(val, priv->base + MVEBU_COMPHY_PIPE_CLK_SRC_LO(lane->id));
+
+	/* Set PIPE mode interface to PCIe3 - 0x1  & set lane order */
+	val = readl(priv->base + MVEBU_COMPHY_PIPE_CLK_SRC_HI(lane->id));
+	val |= MVEBU_COMPHY_PIPE_CLK_SRC_HI_MODE_PIPE;
+	if (pcie_width > 1) {
+		if (lane->id == 0) {
+			val |= MVEBU_COMPHY_PIPE_CLK_SRC_HI_LANE_START;
+			val |= MVEBU_COMPHY_PIPE_CLK_SRC_HI_LANE_MASTER;
+		} else {
+			val &= ~MVEBU_COMPHY_PIPE_CLK_SRC_HI_LANE_START;
+			val &= ~MVEBU_COMPHY_PIPE_CLK_SRC_HI_LANE_MASTER;
+		}
+		if (lane->id == pcie_width - 1)
+			val |= MVEBU_COMPHY_PIPE_CLK_SRC_HI_LANE_BREAK;
+		else
+			val &= ~MVEBU_COMPHY_PIPE_CLK_SRC_HI_LANE_BREAK;
+	}
+	writel(val, priv->base + MVEBU_COMPHY_PIPE_CLK_SRC_HI(lane->id));
+
+	/* Config update polarity equalization */
+	val = readl(priv->base + MVEBU_COMPHY_LANE_EQ_CFG1(lane->id));
+	val |= MVEBU_COMPHY_LANE_EQ_CFG1_UPDATE_POLARITY;
+	writel(val, priv->base + MVEBU_COMPHY_LANE_EQ_CFG1(lane->id));
+
+	/* Set PIPE version 4 to mode enable */
+	val = readl(priv->base + MVEBU_COMPHY_DFE_CTRL_28(lane->id));
+	val |= MVEBU_COMPHY_DFE_CTRL_28_PIPE4;
+	writel(val, priv->base + MVEBU_COMPHY_DFE_CTRL_28(lane->id));
+
+	val = readl(priv->base + MVEBU_COMPHY_MISC_CTRL0(lane->id));
+	val &= ~MVEBU_COMPHY_MISC_CTRL0_TXDCLK_2X;
+	val |= MVEBU_COMPHY_MISC_CTRL0_CLK500M_EN;
+	val |= MVEBU_COMPHY_MISC_CTRL0_ICP_FORCE;
+	if (pcie_clk_config) {
+		val &= ~MVEBU_COMPHY_MISC_CTRL0_REFCLK_SEL;
+		val |= MVEBU_COMPHY_MISC_CTRL0_CLK100M_125M;
+	} else {
+		val |= MVEBU_COMPHY_MISC_CTRL0_REFCLK_SEL;
+	}
+	writel(val, priv->base + MVEBU_COMPHY_MISC_CTRL0(lane->id));
+
+	val = readl(priv->base + MVEBU_COMPHY_PWRPLL_CTRL(lane->id));
+	val &= ~MVEBU_COMPHY_PWRPLL_CTRL_RFREQ(0x1f);
+	val &= ~MVEBU_COMPHY_PWRPLL_PHY_MODE(0x7);
+	if (pcie_clk_config)
+		val |= MVEBU_COMPHY_PWRPLL_CTRL_RFREQ(0x2);
+	else
+		val |= MVEBU_COMPHY_PWRPLL_CTRL_RFREQ(0x0);
+	val |= MVEBU_COMPHY_PWRPLL_PHY_MODE(0x3);
+	writel(val, priv->base + MVEBU_COMPHY_PWRPLL_CTRL(lane->id));
+
+	if (pcie_width > 1) {
+		/* reference clock alignment */
+		val = readl(priv->base + MVEBU_COMPHY_LANE_ALIGN(lane->id));
+		val &= ~MVEBU_COMPHY_LANE_ALIGN_BIT;
+		writel(val, priv->base + MVEBU_COMPHY_LANE_ALIGN(lane->id));
+	}
+
+	/*
+	 * Set the amount of time spent in the LoZ state - set for 0x7
+	 * only if the PCIe clock is output
+	 */
+	if (pcie_clk_config) {
+		val = readl(priv->base + MVEBU_COMPHY_PIPE_PM_CTRL(lane->id));
+		val &= ~MVEBU_COMPHY_PIPE_PM_CTRL_RDLOZ_WAIT(0xff);
+		val |= MVEBU_COMPHY_PIPE_PM_CTRL_RDLOZ_WAIT(0x7);
+		writel(val, priv->base + MVEBU_COMPHY_PIPE_PM_CTRL(lane->id));
+	}
+
+	val = readl(priv->base + MVEBU_COMPHY_INTERFACE(lane->id));
+	val &= ~MVEBU_COMPHY_INTERFACE_GEN_MAX(0x3);
+	val |= MVEBU_COMPHY_INTERFACE_GEN_MAX(0x2);
+	val |= MVEBU_COMPHY_INTERFACE_DET_BYPASS;
+	val |= MVEBU_COMPHY_INTERFACE_LINK_TRAIN;
+	writel(val, priv->base + MVEBU_COMPHY_INTERFACE(lane->id));
 }
 
 static int mvebu_comphy_init_plls(struct mvebu_comphy_lane *lane,
@@ -979,6 +1167,325 @@ static int mvebu_comphy_set_mode_usb3(struct phy *phy)
 	return 0;
 }
 
+static int mvebu_comphy_pcie_get_width(struct mvebu_comphy_lane *lane)
+{
+	int i;
+	struct mvebu_comphy_priv *priv = lane->priv;
+	int ret;
+
+	if (lane->id == 4 || lane->id == 5) {
+		return 1;
+	}
+
+	for (ret = 0, i = 0; i < 4; ++i) {
+		if (priv->modes[i] == PHY_MODE_PCIE)
+			++ret;
+		else
+			break;
+	}
+
+	if (ret == 0 || ret == 3)
+		/*
+		 * filter out invalid configurations.
+		 */
+		return -EINVAL;
+
+	return ret;
+}
+
+static int mvebu_comphy_set_mode_pcie(struct phy *phy)
+{
+	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
+	struct mvebu_comphy_priv *priv = lane->priv;
+	int pcie_clk_config;
+	int pcie_width;
+	u32 val;
+	int start_lane;
+	int end_lane;
+	int i;
+
+	/*
+	 * first get PCIe clk configuration from sample at reset
+	 * register.
+	 * values for pcie_clk_config:
+	 * - 0: external PCIe clock generation
+	 * - 1: internal PCIe clock generation
+	 *
+	 * NOTE: on A8K, only the master CP holds the proper pcie
+	 * clock configuration. the PCIE1 bit control the clock
+	 * configuration for both lane 4 and lane 5.
+	 *
+	 * FIXME: we should use the CP1 configuration values when
+	 * initialising the CP1 PCIe interfaces.
+	 */
+	regmap_read(priv->sar_regmap, DEVICE_SAR0, &val);
+	if (lane->id == 4 || lane->id == 5) {
+		pcie_clk_config = !!(val & DEV_SAR0_PCIE1_CLK_CP0);
+	} else {
+		pcie_clk_config = !!(val & DEV_SAR0_PCIE0_CLK_CP0);
+	}
+
+	pcie_width = mvebu_comphy_pcie_get_width(lane);
+	if (pcie_width < 0)
+		return pcie_width;
+
+	/*
+	 * PCIe width configuration on lane 0
+	 */
+	if (lane->id == 0) {
+		regmap_read(priv->regmap, MVEBU_COMPHY_SD_CTRL1, &val);
+		switch (pcie_width) {
+		case 1:
+			val &= ~MVEBU_COMPHY_SD_CTRL1_PCIE_X2_EN;
+			val &= ~MVEBU_COMPHY_SD_CTRL1_PCIE_X4_EN;
+			break;
+		case 2:
+			val |= MVEBU_COMPHY_SD_CTRL1_PCIE_X2_EN;
+			val &= ~MVEBU_COMPHY_SD_CTRL1_PCIE_X4_EN;
+			break;
+		case 4:
+			val &= ~MVEBU_COMPHY_SD_CTRL1_PCIE_X2_EN;
+			val |= MVEBU_COMPHY_SD_CTRL1_PCIE_X4_EN;
+			break;
+		}
+		regmap_write(priv->regmap, MVEBU_COMPHY_SD_CTRL1, val);
+	}
+
+	/*
+	 * if PCIe clock is output and clock source from SerDes lane
+	 * 5, need to configure the clock-source MUX. By default, the
+	 * clock source is from lane 4
+	 */
+	if (pcie_clk_config && lane->id == 5) {
+		regmap_read(priv->cp_mgmt_regmap, DFX_DEV_GEN_CTRL12, &val);
+		val &= ~DFX_DEV_GEN_CTRL12_CLK_SRC(0x7);
+		val |= DFX_DEV_GEN_CTRL12_CLK_SRC(0x3);
+		regmap_write(priv->cp_mgmt_regmap, DFX_DEV_GEN_CTRL12, val);
+	}
+
+	mvebu_comphy_pcie_init_reset(lane, pcie_clk_config, pcie_width);
+
+	val = readl(priv->base + MVEBU_COMPHY_PCIE_REG0(lane->id));
+	val |= MVEBU_COMPHY_PCIE_REG0_IDLE_SYNC;
+	val &= ~MVEBU_COMPHY_PCIE_REG0_SEL_BITS(0x3);
+	val |= MVEBU_COMPHY_PCIE_REG0_SEL_BITS(0x2);
+	writel(val, priv->base + MVEBU_COMPHY_PCIE_REG0(lane->id));
+
+
+	val = readl(priv->base + MVEBU_COMPHY_TX_TRAIN_CTRL(lane->id));
+	val |= MVEBU_COMPHY_TX_TRAIN_CTRL_G1;
+	val |= MVEBU_COMPHY_TX_TRAIN_CTRL_GN1;
+	val &= ~MVEBU_COMPHY_TX_TRAIN_CTRL_G0;
+	writel(val, priv->base + MVEBU_COMPHY_TX_TRAIN_CTRL(lane->id));
+
+	val = readl(priv->base + MVEBU_COMPHY_TX_TRAIN_PRESET(lane->id));
+	val &= ~MVEBU_COMPHY_TX_TRAIN_CHK_INIT;
+	val |= MVEBU_COMPHY_TX_TRAIN_COEF_FM_PIN_PCIE3;
+	writel(val, priv->base + MVEBU_COMPHY_TX_TRAIN_PRESET(lane->id));
+
+	/* Set Preset sweep configurations  */
+	val = readl(priv->base + MVEBU_COMPHY_TX_TRAINING11(lane->id));
+	val |= MVEBU_COMPHY_TX_TRAINING11_CHECK_MODE;
+	val |= MVEBU_COMPHY_TX_TRAINING11_PRESET_NUM(0x7);
+	val |= MVEBU_COMPHY_TX_TRAINING11_PRESET_EN;
+	writel(val, priv->base + MVEBU_COMPHY_TX_TRAINING11(lane->id));
+
+	/* Tx train start configuration */
+	val = readl(priv->base + MVEBU_COMPHY_TRAINING5(lane->id));
+	val |= MVEBU_COMPHY_TRAINING5_START_SQ_EN;
+	val &= ~MVEBU_COMPHY_TRAINING5_FRM_DET_EN;
+	val &= ~MVEBU_COMPHY_TRAINING5_FRM_LOCK_EN;
+	val |= MVEBU_COMPHY_TRAINING5_WAIT_TIME_EN;
+	writel(val, priv->base + MVEBU_COMPHY_TRAINING5(lane->id));
+
+	/* Enable Tx train P2P */
+	val = readl(priv->base + MVEBU_COMPHY_TRAINING0(lane->id));
+	val |= MVEBU_COMPHY_TRAINING0_P2P_HOLD;
+	writel(val, priv->base + MVEBU_COMPHY_TRAINING0(lane->id));
+
+
+	/* Configure Tx train timeout */
+	val = readl(priv->base + MVEBU_COMPHY_TRAINING4(lane->id));
+	val &= ~MVEBU_COMPHY_TRAINING4_TIMER(0x3ff);
+	val |= MVEBU_COMPHY_TRAINING4_TIMER(0x17);
+	writel(val, priv->base + MVEBU_COMPHY_TRAINING4(lane->id));
+
+	/* Disable G0/G1/GN1 adaptation */
+	val = readl(priv->base + MVEBU_COMPHY_TX_TRAIN_CTRL(lane->id));
+	val &= ~MVEBU_COMPHY_TX_TRAIN_CTRL_G1;
+	val &= ~MVEBU_COMPHY_TX_TRAIN_CTRL_GN1;
+	val &= ~MVEBU_COMPHY_TX_TRAIN_CTRL_G0;
+	writel(val, priv->base + MVEBU_COMPHY_TX_TRAIN_CTRL(lane->id));
+
+	/* Disable DTL frequency loop */
+	val = readl(priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
+	val &= ~MVEBU_COMPHY_DLT_CTRL_DTL_FLOOP_EN;
+	writel(val, priv->base + MVEBU_COMPHY_DLT_CTRL(lane->id));
+
+	/* Configure G3 DFE */
+	val = readl(priv->base + MVEBU_COMPHY_GEN3_S4(lane->id));
+	val &= ~MVEBU_COMPHY_GEN3_S4_DFE_RES(0x3);
+	val |= MVEBU_COMPHY_GEN3_S4_DFE_RES(0x3);
+	writel(val, priv->base + MVEBU_COMPHY_GEN3_S4(lane->id));
+
+	/* Use TX/RX training result for DFE */
+	val = readl(priv->base + MVEBU_COMPHY_DFE_RES(lane->id));
+	val &= ~MVEBU_COMPHY_DFE_RES_FORCE_GEN_TBL;
+	writel(val, priv->base + MVEBU_COMPHY_DFE_RES(lane->id));
+
+	/* Configure initial and final coefficient value for receiver */
+	val = readl(priv->base + MVEBU_COMPHY_GEN3_S1(lane->id));
+	val &= ~(MVEBU_COMPHY_GEN3_S1_RX_MUL_PI(0x7) |
+		 MVEBU_COMPHY_GEN3_S1_RX_MUL_PF(0x7) |
+		 MVEBU_COMPHY_GEN3_S1_SMPL_INPX2_EN);
+	val |= MVEBU_COMPHY_GEN3_S1_RX_MUL_PI(0x1) |
+		MVEBU_COMPHY_GEN3_S1_RX_MUL_PF(0x1);
+	writel(val, priv->base + MVEBU_COMPHY_GEN3_S1(lane->id));
+
+	/* Trigger sampler enable pulse */
+	val = readl(priv->base + MVEBU_SP_CALIB(lane->id));
+	val |= MVEBU_SP_CALIB_SAMPLER_EN;
+	writel(val, priv->base + MVEBU_SP_CALIB(lane->id));
+	udelay(5);
+	val = readl(priv->base + MVEBU_SP_CALIB(lane->id));
+	val &= ~MVEBU_SP_CALIB_SAMPLER_EN;
+	writel(val, priv->base + MVEBU_SP_CALIB(lane->id));
+
+	/* FFE resistor tuning for different bandwidth  */
+	/* G3 Setting 3 */
+	val = readl(priv->base + MVEBU_COMPHY_GEN3_S3(lane->id));
+	val &= ~(MVEBU_COMPHY_GEN3_S3_FFE_DEG_RES_LVL(0x3) |
+		 MVEBU_COMPHY_GEN3_S3_FFE_LOAD_RES_LVL(0x3));
+	val |= MVEBU_COMPHY_GEN3_S3_FFE_DEG_RES_LVL(0x1) |
+		MVEBU_COMPHY_GEN3_S3_FFE_LOAD_RES_LVL(0x3);
+	writel(val, priv->base + MVEBU_COMPHY_GEN3_S3(lane->id));
+
+	/* Pattern lock lost timeout disable */
+	val = readl(priv->base + MVEBU_COMPHY_FRAME_DETECT3(lane->id));
+	val &= ~MVEBU_COMPHY_FRAME_DETECT3_LOST_TIMEOUT_EN;
+	writel(val, priv->base + MVEBU_COMPHY_FRAME_DETECT3(lane->id));
+
+	/* Configure DFE adaptations */
+	val = readl(priv->base + MVEBU_COMPHY_CDR_CONTROL(lane->id));
+	val &= ~MVEBU_COMPHY_CDR_CONTROL_RX_MAX_DFE_ADAPT_1(0x3);
+	val &= ~MVEBU_COMPHY_CDR_CONTROL_MAX_DFE_ADAPT_1(0x7);
+	val &= ~MVEBU_COMPHY_CDR_CONTROL_MAX_DFE_ADAPT_0(0x7);
+	val |= MVEBU_COMPHY_CDR_CONTROL_RX_MAX_DFE_ADAPT_1(0x0);
+	val |= MVEBU_COMPHY_CDR_CONTROL_MAX_DFE_ADAPT_1(0x1);
+	val |= MVEBU_COMPHY_CDR_CONTROL_MAX_DFE_ADAPT_0(0x0);
+	writel(val, priv->base + MVEBU_COMPHY_CDR_CONTROL(lane->id));
+
+	val = readl(priv->base + MVEBU_COMPHY_DFE_CTRL(lane->id));
+	val &= ~MVEBU_COMPHY_DFE_CTRL_TX_MAX_DFE_ADAPT(0x3);
+	writel(val, priv->base + MVEBU_COMPHY_DFE_CTRL(lane->id));
+
+	/* Generation 2 setting 1*/
+	val = readl(priv->base + MVEBU_COMPHY_GEN2_S1(lane->id));
+	val &= ~MVEBU_COMPHY_GEN2_S1_RX_MUL_PI(0x7);
+	val &= ~MVEBU_COMPHY_GEN2_S1_RX_MUL_PF(0x7);
+	val &= ~MVEBU_COMPHY_GEN2_S1_RX_MUL_FI(0x3);
+	val |= MVEBU_COMPHY_GEN2_S1_RX_MUL_PI(0x0);
+	val |= MVEBU_COMPHY_GEN2_S1_RX_MUL_PF(0x1);
+	val |= MVEBU_COMPHY_GEN2_S1_RX_MUL_FI(0x0);
+	writel(val, priv->base + MVEBU_COMPHY_GEN2_S1(lane->id));
+
+	/* DFE enable */
+	val = readl(priv->base + MVEBU_COMPHY_GEN2_S4(lane->id));
+	val &= ~MVEBU_COMPHY_GEN2_S4_DFE_RES(0x3);
+	val |= MVEBU_COMPHY_GEN2_S4_DFE_RES(0x3);
+	writel(val, priv->base + MVEBU_COMPHY_GEN2_S4(lane->id));
+
+	/* Configure DFE Resolution */
+	val = readl(priv->base + MVEBU_COMPHY_LANE_CFG4(lane->id));
+	val |= MVEBU_COMPHY_LANE_CFG4_DFE_EN_SEL;
+	writel(val, priv->base + MVEBU_COMPHY_LANE_CFG4(lane->id));
+
+	/* VDD calibration control */
+	val = readl(priv->base + MVEBU_COMPHY_EXT_SELV(lane->id));
+	val &= ~MVEBU_COMPHY_EXT_SELV_RX_SAMPL(0x1f);
+	val |= MVEBU_COMPHY_EXT_SELV_RX_SAMPL(0x16);
+	writel(val, priv->base + MVEBU_COMPHY_EXT_SELV(lane->id));
+
+	/* Set PLL Charge-pump Current Control */
+	val = readl(priv->base + MVEBU_COMPHY_GEN3_S5(lane->id));
+	val &= ~MVEBU_COMPHY_GEN3_S5_ICP(0xf);
+	val |= MVEBU_COMPHY_GEN3_S5_ICP(0x4);
+	writel(val, priv->base + MVEBU_COMPHY_GEN3_S5(lane->id));
+
+	/* Set lane equalization remote setting */
+	val = readl(priv->base + MVEBU_COMPHY_LANE_EQ_REMOTE_CFG(lane->id));
+	val |= MVEBU_COMPHY_LANE_EQ_REMOTE_CFG_DIRN_OVERRIDE;
+	val |= MVEBU_COMPHY_LANE_EQ_REMOTE_CFG_ONLY_MODE;
+	val &= ~MVEBU_COMPHY_LANE_EQ_REMOTE_CFG_PRESET_VECTOR(0xf);
+	val |= MVEBU_COMPHY_LANE_EQ_REMOTE_CFG_PRESET_VECTOR(0x2);
+	writel(val, priv->base + MVEBU_COMPHY_LANE_EQ_REMOTE_CFG(lane->id));
+
+	/* Set phy in root complex mode */
+	val = readl(priv->base + MVEBU_COMPHY_EQ_CONFIG0(lane->id));
+	val |= MVEBU_COMPHY_EQ_CONFIG0_RC_MODE;
+	writel(val, priv->base + MVEBU_COMPHY_EQ_CONFIG0(lane->id));
+
+	/* we're done for now if we are not in the last lane. */
+	if (pcie_width > 1 && lane->id != (pcie_width - 1))
+		return 0;
+
+	if (pcie_width > 1) {
+		/*
+		 * for x2 or x4: we need to release the pipe reset in
+		 * one single write on all comphys.
+		 */
+		regmap_read(priv->regmap, MVEBU_COMPHY_SD_CTRL1, &val);
+		if (pcie_width == 2)
+			val &= ~MVEBU_COMPHY_SD_CTRL1_PHY0_1_MASK;
+		else
+			val &= ~MVEBU_COMPHY_SD_CTRL1_PHY0_3_MASK;
+		regmap_write(priv->regmap, MVEBU_COMPHY_SD_CTRL1, val);
+
+		/*
+		 * now all writes to comphy register block 0 will hit
+		 * all PCIe PHYs.
+		 */
+		val = readl(priv->base + MVEBU_COMPHY_PIPE_RST_CLK_CTRL(0));
+		val &= ~MVEBU_COMPHY_PIPE_RST_CLK_CTRL_RST;
+		writel(val, priv->base + MVEBU_COMPHY_PIPE_RST_CLK_CTRL(0));
+
+		/*
+		 * restore writes to all individual phys.
+		 */
+		regmap_read(priv->regmap, MVEBU_COMPHY_SD_CTRL1, &val);
+		if (pcie_width == 2)
+			val |= 0x0010;
+		else
+			val |= 0x3210;
+		regmap_write(priv->regmap, MVEBU_COMPHY_SD_CTRL1, val);
+
+		start_lane = 0;
+		end_lane = pcie_width - 1;
+	} else {
+		/* release pipe soft reset */
+		val = readl(priv->base +
+			      MVEBU_COMPHY_PIPE_RST_CLK_CTRL(lane->id));
+		val &= ~MVEBU_COMPHY_PIPE_RST_CLK_CTRL_RST;
+		writel(val, priv->base +
+			 MVEBU_COMPHY_PIPE_RST_CLK_CTRL(lane->id));
+		start_lane = end_lane = lane->id;
+	}
+
+	for (i = start_lane; i <= end_lane; ++i) {
+		readl_poll_timeout(priv->base + MVEBU_COMPHY_LANE_STATUS0(i),
+				   val,
+				   val & MVEBU_COMPHY_LANE_STATUS0_PCLK_EN,
+				   1000, 150000);
+		if (!(val & MVEBU_COMPHY_LANE_STATUS0_PCLK_EN)) {
+			printk("timedout waiting for lane pclk on lane %d\n",
+			       lane->id);
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
+}
+
 static int mvebu_comphy_power_on(struct phy *phy)
 {
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
@@ -1019,6 +1526,9 @@ static int mvebu_comphy_power_on(struct phy *phy)
 	case PHY_MODE_USB_DEVICE:
 		ret = mvebu_comphy_set_mode_usb3(phy);
 		break;
+	case PHY_MODE_PCIE:
+		ret = mvebu_comphy_set_mode_pcie(phy);
+		break;
 	default:
 		return -ENOTSUPP;
 	}
@@ -1039,6 +1549,7 @@ static int mvebu_comphy_set_mode(struct phy *phy, enum phy_mode mode)
 	    mvebu_comphy_get_pipe_mux(lane->id, lane->port, mode) < 0)
 		return -EINVAL;
 
+	lane->priv->modes[lane->id] = mode;
 	lane->mode = mode;
 	return 0;
 }
