@@ -160,6 +160,11 @@
 				msi-parent = <&gicp>;
 			};
 
+			cpm_mgmt: system-controller@400000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x400000 0x300>;
+			};
+
 			cpm_syscon0: system-controller@440000 {
 				compatible = "syscon", "simple-mfd";
 				reg = <0x440000 0x2000>;
