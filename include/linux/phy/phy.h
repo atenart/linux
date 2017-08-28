@@ -31,6 +31,7 @@ enum phy_mode {
 	PHY_MODE_HS_SGMII,
 	PHY_MODE_10GKR,
 	PHY_MODE_SATA,
+	PHY_MODE_PCIE,
 };
 
 /**
