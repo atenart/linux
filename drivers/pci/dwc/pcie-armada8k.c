@@ -69,6 +69,11 @@ struct armada8k_pcie {
 #define AX_USER_DOMAIN_MASK		0x3
 #define AX_USER_DOMAIN_SHIFT		4
 
+#define PCIE_LANE_EQ_CTRL01_REG		0x164
+#define PCIE_LANE_EQ_CTRL23_REG		0x168
+#define PCIE_LANE_EQ_SETTING		0x7700
+#define PCIE_LANE_EQ_MASK		0x7f00
+
 #define to_armada8k_pcie(x)	dev_get_drvdata((x)->dev)
 
 static int armada8k_pcie_link_up(struct dw_pcie *pci)
@@ -166,6 +171,44 @@ static const struct dw_pcie_host_ops armada8k_pcie_host_ops = {
 	.host_init = armada8k_pcie_host_init,
 };
 
+#define REP_U16(x)	(((x & 0xffff) << 16) | (x & 0xffff))
+
+static void armada8k_pcie_configure_lane_eq(struct dw_pcie *pci, u32 lane_count)
+{
+	u32 val01 = 0, val23 = 0, mask01 = 0, mask23 = 0;
+	u32 reg;
+
+	switch (lane_count) {
+	case 1:
+		mask01 = PCIE_LANE_EQ_MASK;
+		val01 = PCIE_LANE_EQ_SETTING;
+		break;
+
+	case 2:
+	set_val01_mask01:
+		mask01 = REP_U16(PCIE_LANE_EQ_MASK);
+		val01 = REP_U16(PCIE_LANE_EQ_SETTING);
+		break;
+	case 4:
+		mask23 = REP_U16(PCIE_LANE_EQ_MASK);
+		val23 = REP_U16(PCIE_LANE_EQ_SETTING);
+		goto set_val01_mask01;
+	}
+
+	if (val01) {
+		reg = dw_pcie_readl_dbi(pci, PCIE_LANE_EQ_CTRL01_REG);
+		reg &= ~mask01;
+		reg |= val01;
+		dw_pcie_writel_dbi(pci, PCIE_LANE_EQ_CTRL01_REG, reg);
+	}
+	if (val23) {
+		reg = dw_pcie_readl_dbi(pci, PCIE_LANE_EQ_CTRL23_REG);
+		reg &= ~mask23;
+		reg |= val23;
+		dw_pcie_writel_dbi(pci, PCIE_LANE_EQ_CTRL23_REG, reg);
+	}
+}
+
 static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 				  struct platform_device *pdev)
 {
@@ -200,6 +243,8 @@ static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,
 			return error;
 		}
 	}
+
+	armada8k_pcie_configure_lane_eq(pci, pcie->phys_count);
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
