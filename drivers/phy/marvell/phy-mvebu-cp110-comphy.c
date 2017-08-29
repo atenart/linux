@@ -214,6 +214,32 @@ static const struct mvebu_comhy_conf mvebu_comphy_cp110_modes[] = {
 	MVEBU_COMPHY_CONF(5, 1, PHY_MODE_SATA, 0x4),
 };
 
+static const struct mvebu_comhy_conf mvebu_comphy_cp110_pipe_modes[] = {
+	/* lane 0 */
+	MVEBU_COMPHY_CONF(0, 0, PHY_MODE_PCIE, 0x4),
+
+	/* lane 1 */
+	MVEBU_COMPHY_CONF(1, 0, PHY_MODE_USB_HOST, 0x1),
+	MVEBU_COMPHY_CONF(1, 0, PHY_MODE_USB_DEVICE, 0x2),
+	MVEBU_COMPHY_CONF(1, 0, PHY_MODE_PCIE, 0x4),
+
+	/* lane 2 */
+	MVEBU_COMPHY_CONF(2, 0, PHY_MODE_USB_HOST, 0x1),
+	MVEBU_COMPHY_CONF(2, 0, PHY_MODE_PCIE, 0x4),
+
+	/* lane 3 */
+	MVEBU_COMPHY_CONF(3, 1, PHY_MODE_USB_HOST, 0x1),
+	MVEBU_COMPHY_CONF(3, 0, PHY_MODE_PCIE, 0x4),
+
+	/* lane 4 */
+	MVEBU_COMPHY_CONF(4, 1, PHY_MODE_USB_HOST, 0x1),
+	MVEBU_COMPHY_CONF(4, 0, PHY_MODE_USB_DEVICE, 0x2),
+	MVEBU_COMPHY_CONF(4, 1, PHY_MODE_PCIE, 0x4),
+
+	/* lane 5 */
+	MVEBU_COMPHY_CONF(5, 2, PHY_MODE_PCIE, 0x4),
+};
+
 struct mvebu_comphy_priv {
 	void __iomem *base;
 	struct regmap *regmap;
@@ -247,6 +273,27 @@ static int mvebu_comphy_get_mux(int lane, int port, enum phy_mode mode)
 		return -EINVAL;
 
 	return mvebu_comphy_cp110_modes[i].mux;
+}
+
+static int mvebu_comphy_get_pipe_mux(int lane, int port, enum phy_mode mode)
+{
+	int i, n = ARRAY_SIZE(mvebu_comphy_cp110_pipe_modes);
+
+	/* Unused PHY mux value is 0x0 */
+	if (mode == PHY_MODE_INVALID)
+		return 0;
+
+	for (i = 0; i < n; i++) {
+		if (mvebu_comphy_cp110_pipe_modes[i].lane == lane &&
+		    mvebu_comphy_cp110_pipe_modes[i].port == port &&
+		    mvebu_comphy_cp110_pipe_modes[i].mode == mode)
+			break;
+	}
+
+	if (i == n)
+		return -EINVAL;
+
+	return mvebu_comphy_cp110_pipe_modes[i].mux;
 }
 
 static void mvebu_comphy_ethernet_init_reset(struct mvebu_comphy_lane *lane,
@@ -800,16 +847,26 @@ static int mvebu_comphy_power_on(struct phy *phy)
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
 	struct mvebu_comphy_priv *priv = lane->priv;
 	int ret;
-	u32 mux, val;
+	int mux, pipe_mux;
+	u32 val;
 
 	mux = mvebu_comphy_get_mux(lane->id, lane->port, lane->mode);
-	if (mux < 0)
+	pipe_mux = mvebu_comphy_get_pipe_mux(lane->id, lane->port, lane->mode);
+
+	if (mux < 0 && pipe_mux < 0)
 		return -ENOTSUPP;
 
-	regmap_read(priv->regmap, MVEBU_COMPHY_SELECTOR, &val);
-	val &= ~(0xf << MVEBU_COMPHY_SELECTOR_PHY(lane->id));
-	val |= mux << MVEBU_COMPHY_SELECTOR_PHY(lane->id);
-	regmap_write(priv->regmap, MVEBU_COMPHY_SELECTOR, val);
+	if (mux >= 0) {
+		regmap_read(priv->regmap, MVEBU_COMPHY_SELECTOR, &val);
+		val &= ~(0xf << MVEBU_COMPHY_SELECTOR_PHY(lane->id));
+		val |= mux << MVEBU_COMPHY_SELECTOR_PHY(lane->id);
+		regmap_write(priv->regmap, MVEBU_COMPHY_SELECTOR, val);
+	} else {
+		regmap_read(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, &val);
+		val &= ~(0xf << MVEBU_COMPHY_PIPE_SELECTOR_PHY(lane->id));
+		val |= pipe_mux << MVEBU_COMPHY_PIPE_SELECTOR_PHY(lane->id);
+		regmap_write(priv->regmap, MVEBU_COMPHY_PIPE_SELECTOR, val);
+	}
 
 	switch (lane->mode) {
 	case PHY_MODE_SGMII:
@@ -837,7 +894,8 @@ static int mvebu_comphy_set_mode(struct phy *phy, enum phy_mode mode)
 {
 	struct mvebu_comphy_lane *lane = phy_get_drvdata(phy);
 
-	if (mvebu_comphy_get_mux(lane->id, lane->port, mode) < 0)
+	if (mvebu_comphy_get_mux(lane->id, lane->port, mode) < 0 &&
+	    mvebu_comphy_get_pipe_mux(lane->id, lane->port, mode) < 0)
 		return -EINVAL;
 
 	lane->mode = mode;
