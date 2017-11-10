@@ -150,7 +150,12 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 
 	if (sreq->finish)
 		result_sz = crypto_ahash_digestsize(ahash);
-	memcpy(sreq->state, areq->result, result_sz);
+
+	/* The called isn't required to supply a result buffer. Updated it only
+	 * when provided.
+	 */
+	if (areq->result)
+		memcpy(sreq->state, areq->result, result_sz);
 
 	dma_unmap_sg(priv->dev, areq->src,
 		     sg_nents_for_len(areq->src, areq->nbytes), DMA_TO_DEVICE);
