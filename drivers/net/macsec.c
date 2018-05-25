@@ -20,7 +20,9 @@
 #include <net/genetlink.h>
 #include <net/sock.h>
 #include <net/gro_cells.h>
+#include <linux/phy.h>
 
+#include <net/macsec.h>
 #include <uapi/linux/if_macsec.h>
 
 typedef u64 __bitwise sci_t;
@@ -483,6 +485,20 @@ static void macsec_set_shortlen(struct macsec_eth_header *h, size_t data_len)
 {
 	if (data_len < MIN_NON_SHORT_LEN)
 		h->short_length = data_len;
+}
+
+/* Checks if underlying layers implement MACsec offloading functions */
+static inline bool macsec_hw_offload_capable(struct macsec_dev *dev)
+{
+	struct phy_device *phydev = dev->real_dev->phydev;
+
+	if (phydev && phydev->drv && phydev->drv->macsec)
+		return true;
+	if (dev->real_dev->features & NETIF_F_HW_MACSEC &&
+	    dev->real_dev->netdev_ops->ndo_macsec)
+		return true;
+
+	return false;
 }
 
 /* validate MACsec packet according to IEEE 802.1AE-2006 9.12 */
@@ -1033,7 +1049,7 @@ static struct macsec_rx_sc *find_rx_sc_rtnl(struct macsec_secy *secy, sci_t sci)
 	return NULL;
 }
 
-static void handle_not_macsec(struct sk_buff *skb)
+static void handle_not_macsec(struct sk_buff *skb, bool offload)
 {
 	struct macsec_rxh_data *rxd;
 	struct macsec_dev *macsec;
@@ -1049,7 +1065,8 @@ static void handle_not_macsec(struct sk_buff *skb)
 		struct sk_buff *nskb;
 		struct pcpu_secy_stats *secy_stats = this_cpu_ptr(macsec->stats);
 
-		if (macsec->secy.validate_frames == MACSEC_VALIDATE_STRICT) {
+		if (!offload &&
+		    macsec->secy.validate_frames == MACSEC_VALIDATE_STRICT) {
 			u64_stats_update_begin(&secy_stats->syncp);
 			secy_stats->stats.InPktsNoTag++;
 			u64_stats_update_end(&secy_stats->syncp);
@@ -1089,14 +1106,15 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 	struct pcpu_rx_sc_stats *rxsc_stats;
 	struct pcpu_secy_stats *secy_stats;
 	bool pulled_sci;
+	bool offload = macsec_hw_offload_capable(netdev_priv(dev));
 	int ret;
 
 	if (skb_headroom(skb) < ETH_HLEN)
 		goto drop_direct;
 
 	hdr = macsec_ethhdr(skb);
-	if (hdr->eth.h_proto != htons(ETH_P_MACSEC)) {
-		handle_not_macsec(skb);
+	if (hdr->eth.h_proto != htons(ETH_P_MACSEC) || offload) {
+		handle_not_macsec(skb, offload);
 
 		/* and deliver to the uncontrolled port */
 		return RX_HANDLER_PASS;
@@ -1606,6 +1624,54 @@ static const struct nla_policy macsec_genl_sa_policy[NUM_MACSEC_SA_ATTR] = {
 				 .len = MACSEC_MAX_KEY_LEN, },
 };
 
+/* Offloads MACsec commands to the underlying layers, if supported.
+ * Should be called with rtnl lock taken.
+ */
+static int macsec_hw_offload(struct net_device *net,
+			     enum netdev_macsec_commands command, void *arg)
+{
+	struct macsec_dev *dev = netdev_priv(net);
+	struct netdev_macsec macsec;
+
+	if (!macsec_hw_offload_capable(dev))
+		return 0;
+
+	switch (command) {
+	case MACSEC_ADD_RXSC:
+	case MACSEC_DEL_RXSC:
+	case MACSEC_UPD_RXSC:
+		macsec.rx_sc = arg;
+		break;
+	case MACSEC_ADD_TXSC:
+	case MACSEC_DEL_TXSC:
+	case MACSEC_UPD_TXSC:
+		macsec.tx_sc = arg;
+		break;
+	case MACSEC_ADD_RXSA:
+	case MACSEC_DEL_RXSA:
+	case MACSEC_UPD_RXSA:
+		macsec.rx_sa = arg;
+		break;
+	case MACSEC_ADD_TXSA:
+	case MACSEC_DEL_TXSA:
+	case MACSEC_UPD_TXSA:
+		macsec.tx_sa = arg;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	macsec.command = command;
+
+	/* If the PHY driver does support h/w offloading, use it */
+	if (dev->real_dev->phydev && dev->real_dev->phydev->drv)
+		return dev->real_dev->phydev->drv->macsec(dev->real_dev->phydev,
+							  &macsec);
+
+	/* Otherwise offload to the MAC */
+	return dev->real_dev->netdev_ops->ndo_macsec(net, &macsec);
+}
+
 static int parse_sa_config(struct nlattr **attrs, struct nlattr **tb_sa)
 {
 	if (!attrs[MACSEC_ATTR_SA_CONFIG])
@@ -1729,6 +1795,8 @@ static int macsec_add_rxsa(struct sk_buff *skb, struct genl_info *info)
 	rx_sa->sc = rx_sc;
 	rcu_assign_pointer(rx_sc->sa[assoc_num], rx_sa);
 
+	macsec_hw_offload(dev, MACSEC_ADD_RXSA, rx_sa);
+
 	rtnl_unlock();
 
 	return 0;
@@ -1781,6 +1849,8 @@ static int macsec_add_rxsc(struct sk_buff *skb, struct genl_info *info)
 
 	if (tb_rxsc[MACSEC_RXSC_ATTR_ACTIVE])
 		rx_sc->active = !!nla_get_u8(tb_rxsc[MACSEC_RXSC_ATTR_ACTIVE]);
+
+	macsec_hw_offload(dev, MACSEC_ADD_RXSC, rx_sc);
 
 	rtnl_unlock();
 
@@ -1885,6 +1955,8 @@ static int macsec_add_txsa(struct sk_buff *skb, struct genl_info *info)
 
 	rcu_assign_pointer(tx_sc->sa[assoc_num], tx_sa);
 
+	macsec_hw_offload(dev, MACSEC_ADD_TXSA, tx_sa);
+
 	rtnl_unlock();
 
 	return 0;
@@ -1924,6 +1996,7 @@ static int macsec_del_rxsa(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	RCU_INIT_POINTER(rx_sc->sa[assoc_num], NULL);
+	macsec_hw_offload(dev, MACSEC_DEL_RXSA, rx_sa);
 	clear_rx_sa(rx_sa);
 
 	rtnl_unlock();
@@ -1965,6 +2038,8 @@ static int macsec_del_rxsc(struct sk_buff *skb, struct genl_info *info)
 		return -ENODEV;
 	}
 
+	macsec_hw_offload(dev, MACSEC_DEL_RXSC, rx_sc);
+
 	free_rx_sc(rx_sc);
 	rtnl_unlock();
 
@@ -2001,6 +2076,7 @@ static int macsec_del_txsa(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	RCU_INIT_POINTER(tx_sc->sa[assoc_num], NULL);
+	macsec_hw_offload(dev, MACSEC_DEL_TXSA, tx_sa);
 	clear_tx_sa(tx_sa);
 
 	rtnl_unlock();
@@ -2068,6 +2144,8 @@ static int macsec_upd_txsa(struct sk_buff *skb, struct genl_info *info)
 	if (assoc_num == tx_sc->encoding_sa)
 		secy->operational = tx_sa->active;
 
+	macsec_hw_offload(dev, MACSEC_UPD_TXSA, tx_sa);
+
 	rtnl_unlock();
 
 	return 0;
@@ -2113,6 +2191,8 @@ static int macsec_upd_rxsa(struct sk_buff *skb, struct genl_info *info)
 	if (tb_sa[MACSEC_SA_ATTR_ACTIVE])
 		rx_sa->active = nla_get_u8(tb_sa[MACSEC_SA_ATTR_ACTIVE]);
 
+	macsec_hw_offload(dev, MACSEC_UPD_RXSA, rx_sa);
+
 	rtnl_unlock();
 	return 0;
 }
@@ -2149,6 +2229,8 @@ static int macsec_upd_rxsc(struct sk_buff *skb, struct genl_info *info)
 
 		rx_sc->active = new;
 	}
+
+	macsec_hw_offload(dev, MACSEC_UPD_RXSC, rx_sc);
 
 	rtnl_unlock();
 
@@ -2715,7 +2797,8 @@ static netdev_tx_t macsec_start_xmit(struct sk_buff *skb,
 	int ret, len;
 
 	/* 10.5 */
-	if (!secy->protect_frames) {
+	if (!secy->protect_frames ||
+	    macsec_hw_offload_capable(netdev_priv(dev))) {
 		secy_stats = this_cpu_ptr(macsec->stats);
 		u64_stats_update_begin(&secy_stats->syncp);
 		secy_stats->stats.OutPktsUntagged++;

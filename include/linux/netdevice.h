@@ -53,6 +53,10 @@
 #include <uapi/linux/pkt_cls.h>
 #include <linux/hashtable.h>
 
+#ifdef CONFIG_MACSEC
+#include <net/macsec.h>
+#endif
+
 struct netpoll_info;
 struct device;
 struct phy_device;
@@ -1390,6 +1394,10 @@ struct net_device_ops {
 						u32 flags);
 	int			(*ndo_xsk_async_xmit)(struct net_device *dev,
 						      u32 queue_id);
+#ifdef CONFIG_MACSEC
+	int			(*ndo_macsec)(struct net_device *dev,
+					      struct netdev_macsec *macsec);
+#endif
 };
 
 /**
