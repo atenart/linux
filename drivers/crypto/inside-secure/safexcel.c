@@ -553,6 +553,8 @@ handle_req:
 		cdesc += commands;
 		rdesc += results;
 		nreq++;
+
+		safexcel_enter_ring(priv, ring);
 	}
 
 request_failed:
@@ -1117,8 +1119,11 @@ static int safexcel_probe(struct platform_device *pdev)
 		spin_lock_init(&priv->ring[i].queue_lock);
 	}
 
+	INIT_DELAYED_WORK(&priv->statistics, safexcel_ring_statistics);
+	queue_delayed_work(system_power_efficient_wq, &priv->statistics,
+			   EIP197_STATS_INTERVAL);
+
 	platform_set_drvdata(pdev, priv);
-	atomic_set(&priv->ring_used, 0);
 
 	ret = safexcel_hw_init(priv);
 	if (ret) {

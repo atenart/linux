@@ -13,6 +13,7 @@
 #include <crypto/internal/hash.h>
 #include <crypto/sha.h>
 #include <crypto/skcipher.h>
+#include <linux/workqueue.h>
 
 #define EIP197_HIA_VERSION_LE			0xca35
 #define EIP197_HIA_VERSION_BE			0x35ca
@@ -23,6 +24,7 @@
 #define EIP197_MAX_RINGS			4
 #define EIP197_FETCH_COUNT			1
 #define EIP197_MAX_BATCH_SZ			64
+#define EIP197_STATS_INTERVAL			(3 * 60 * HZ)
 
 #define EIP197_GFP_FLAGS(base)	((base).flags & CRYPTO_TFM_REQ_MAY_SLEEP ? \
 				 GFP_KERNEL : GFP_ATOMIC)
@@ -618,9 +620,9 @@ struct safexcel_crypto_priv {
 	/* context DMA pool */
 	struct dma_pool *context_pool;
 
-	atomic_t ring_used;
-
 	struct safexcel_ring *ring;
+	unsigned long long requests[EIP197_MAX_RINGS];
+	struct delayed_work statistics;
 };
 
 struct safexcel_context {
@@ -679,6 +681,7 @@ int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
 				   struct safexcel_desc_ring *cdr,
 				   struct safexcel_desc_ring *rdr);
 int safexcel_select_ring(struct safexcel_crypto_priv *priv);
+void safexcel_enter_ring(struct safexcel_crypto_priv *priv, int ring);
 void *safexcel_ring_next_rptr(struct safexcel_crypto_priv *priv,
 			      struct safexcel_desc_ring *ring);
 void *safexcel_ring_first_rptr(struct safexcel_crypto_priv *priv, int  ring);
@@ -708,6 +711,8 @@ safexcel_rdr_req_get(struct safexcel_crypto_priv *priv, int ring);
 void safexcel_inv_complete(struct crypto_async_request *req, int error);
 int safexcel_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
 			 void *istate, void *ostate);
+
+void safexcel_ring_statistics(struct work_struct *work);
 
 /* available algorithms */
 extern struct safexcel_alg_template safexcel_alg_ecb_des;

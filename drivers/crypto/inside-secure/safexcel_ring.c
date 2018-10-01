@@ -10,6 +10,21 @@
 
 #include "safexcel.h"
 
+void safexcel_ring_statistics(struct work_struct *work)
+{
+	struct safexcel_crypto_priv *priv =
+		container_of(to_delayed_work(work), struct safexcel_crypto_priv,
+			     statistics);
+	int i;
+
+	/* Reset the ring counters */
+	for (i = 0; i < priv->config.rings; i++)
+		priv->requests[i] = 0;
+
+	queue_delayed_work(system_power_efficient_wq, &priv->statistics,
+			   EIP197_STATS_INTERVAL);
+}
+
 int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
 				   struct safexcel_desc_ring *cdr,
 				   struct safexcel_desc_ring *rdr)
@@ -39,7 +54,21 @@ int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
 
 inline int safexcel_select_ring(struct safexcel_crypto_priv *priv)
 {
-	return (atomic_inc_return(&priv->ring_used) % priv->config.rings);
+	int i, selected = 0, best = priv->requests[0];
+
+	for (i = 1; i < priv->config.rings; i++) {
+		if (priv->requests[i] < best) {
+			selected = i;
+			best = priv->requests[i];
+		}
+	}
+
+	return selected;
+}
+
+inline void safexcel_enter_ring(struct safexcel_crypto_priv *priv, int ring)
+{
+	priv->requests[ring]++;
 }
 
 static void *safexcel_ring_next_wptr(struct safexcel_crypto_priv *priv,
