@@ -1209,10 +1209,6 @@ static void mvpp2_port_disable(struct mvpp2_port *port)
 		val = readl(port->base + MVPP22_XLG_CTRL0_REG);
 		val &= ~MVPP22_XLG_CTRL0_PORT_EN;
 		writel(val, port->base + MVPP22_XLG_CTRL0_REG);
-
-		/* Disable & reset should be done separately */
-		val &= ~MVPP22_XLG_CTRL0_MAC_RESET_DIS;
-		writel(val, port->base + MVPP22_XLG_CTRL0_REG);
 	} else {
 		val = readl(port->base + MVPP2_GMAC_CTRL_0_REG);
 		val &= ~(MVPP2_GMAC_PORT_EN_MASK);
