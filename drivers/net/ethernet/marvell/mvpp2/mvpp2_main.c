@@ -1164,13 +1164,25 @@ static void mvpp22_gop_setup_irq(struct mvpp2_port *port)
  */
 static int mvpp22_comphy_init(struct mvpp2_port *port)
 {
+	void __iomem *xpcs = port->priv->iface_base + MVPP22_XPCS_BASE(port->gop_id);
 	int ret;
+	u32 val;
 
 	if (!port->comphy)
 		return 0;
 
+	/* The XPCS has to be in reset while configuring the serdes lanes. */
+	val = readl(xpcs + MVPP22_XPCS_CFG0);
+	writel(val & ~MVPP22_XPCS_CFG0_RESET_DIS, xpcs + MVPP22_XPCS_CFG0);
+
 	ret = phy_set_mode_ext(port->comphy, PHY_MODE_ETHERNET,
 			       port->phy_interface);
+
+	if (port->phy_interface == PHY_INTERFACE_MODE_XAUI ||
+	    port->phy_interface == PHY_INTERFACE_MODE_10GKR)
+		writel(val | MVPP22_XPCS_CFG0_RESET_DIS,
+		       xpcs + MVPP22_XPCS_CFG0);
+
 	if (ret)
 		return ret;
 
