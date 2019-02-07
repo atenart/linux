@@ -4061,8 +4061,8 @@ static int mvpp2_multi_queue_vectors_init(struct mvpp2_port *port,
 			snprintf(irqname, sizeof(irqname), "hif%d", i);
 
 		if (queue_mode == MVPP2_QDIST_MULTI_MODE) {
-			v->first_rxq = i * MVPP2_DEFAULT_RXQ;
-			v->nrxqs = MVPP2_DEFAULT_RXQ;
+			v->first_rxq = i;
+			v->nrxqs = 1;
 		} else if (queue_mode == MVPP2_QDIST_SINGLE_MODE &&
 			   i == (port->nqvecs - 1)) {
 			v->first_rxq = 0;
@@ -4155,8 +4155,7 @@ static int mvpp2_port_init(struct mvpp2_port *port)
 	    MVPP2_MAX_PORTS * priv->max_port_rxqs)
 		return -EINVAL;
 
-	if (port->nrxqs % MVPP2_DEFAULT_RXQ ||
-	    port->nrxqs > priv->max_port_rxqs || port->ntxqs > MVPP2_MAX_TXQ)
+	if (port->nrxqs > priv->max_port_rxqs || port->ntxqs > MVPP2_MAX_TXQ)
 		return -EINVAL;
 
 	/* Disable port */
@@ -4776,10 +4775,10 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	}
 
 	ntxqs = MVPP2_MAX_TXQ;
-	if (priv->hw_version == MVPP22 && queue_mode == MVPP2_QDIST_MULTI_MODE)
-		nrxqs = MVPP2_DEFAULT_RXQ * num_possible_cpus();
+	if (priv->hw_version == MVPP22 && queue_mode == MVPP2_QDIST_SINGLE_MODE)
+		nrxqs = 1;
 	else
-		nrxqs = MVPP2_DEFAULT_RXQ;
+		nrxqs = min_t(unsigned int, num_possible_cpus(), MVPP2_PORT_MAX_RXQ);
 
 	dev = alloc_etherdev_mqs(sizeof(*port), ntxqs, nrxqs);
 	if (!dev)
