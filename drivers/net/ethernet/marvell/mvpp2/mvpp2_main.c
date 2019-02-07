@@ -1389,6 +1389,17 @@ static void mvpp2_port_reset(struct mvpp2_port *port)
 	val = readl(port->base + MVPP2_GMAC_CTRL_2_REG) |
 	      MVPP2_GMAC_PORT_RESET_MASK;
 	writel(val, port->base + MVPP2_GMAC_CTRL_2_REG);
+
+	if (port->priv->hw_version == MVPP22 && port->gop_id == 0) {
+		/* Set the XLG MAC in reset */
+		val = readl(port->base + MVPP22_XLG_CTRL0_REG) &
+		      ~MVPP22_XLG_CTRL0_MAC_RESET_DIS;
+		writel(val, port->base + MVPP22_XLG_CTRL0_REG);
+
+		while (readl(port->base + MVPP22_XLG_CTRL0_REG) &
+		       MVPP22_XLG_CTRL0_MAC_RESET_DIS)
+			continue;
+	}
 }
 
 /* Change maximum receive size of the port */
@@ -4520,6 +4531,8 @@ static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 
 	ctrl0 = readl(port->base + MVPP22_XLG_CTRL0_REG);
 	ctrl4 = readl(port->base + MVPP22_XLG_CTRL4_REG);
+
+	ctrl0 |= MVPP22_XLG_CTRL0_MAC_RESET_DIS;
 
 	if (state->pause & MLO_PAUSE_TX)
 		ctrl0 |= MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN;
