@@ -984,7 +984,8 @@ static void discard_partial_frame(struct macb_queue *queue, unsigned int begin,
 	 */
 }
 
-static int gem_rx(struct macb_queue *queue, int budget)
+static int gem_rx(struct macb_queue *queue, struct napi_struct *napi,
+		  int budget)
 {
 	struct macb *bp = queue->bp;
 	unsigned int		len;
@@ -1066,7 +1067,7 @@ static int gem_rx(struct macb_queue *queue, int budget)
 			       skb->data, 32, true);
 #endif
 
-		netif_receive_skb(skb);
+		napi_gro_receive(napi, skb);
 	}
 
 	gem_rx_refill(queue);
@@ -1174,7 +1175,8 @@ static inline void macb_init_rx_ring(struct macb_queue *queue)
 	queue->rx_tail = 0;
 }
 
-static int macb_rx(struct macb_queue *queue, int budget)
+static int macb_rx(struct macb_queue *queue, struct napi_struct *napi,
+		   int budget)
 {
 	struct macb *bp = queue->bp;
 	bool reset_rx_queue = false;
@@ -1265,7 +1267,7 @@ static int macb_poll(struct napi_struct *napi, int budget)
 	netdev_vdbg(bp->dev, "poll: status = %08lx, budget = %d\n",
 		    (unsigned long)status, budget);
 
-	work_done = bp->macbgem_ops.mog_rx(queue, budget);
+	work_done = bp->macbgem_ops.mog_rx(queue, napi, budget);
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 		queue_writel(queue, IER, bp->rx_intr_mask);
