@@ -1258,6 +1258,7 @@ static int macb_poll(struct napi_struct *napi, int budget)
 {
 	struct macb_queue *queue = container_of(napi, struct macb_queue, napi);
 	struct macb *bp = queue->bp;
+	unsigned int q;
 	int work_done;
 	u32 status;
 
@@ -1272,6 +1273,11 @@ static int macb_poll(struct napi_struct *napi, int budget)
 		napi_complete_done(napi, work_done);
 		queue_writel(queue, IER, bp->rx_intr_mask);
 	}
+
+	// FIXME: second use of 'queue'
+	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue)
+		if (queue_readl(queue, ISR) & MACB_BIT(TCOMP))
+			macb_tx_interrupt(queue);
 
 	/* TODO: Handle errors */
 
