@@ -659,7 +659,8 @@ static int macb_halt_tx(struct macb *bp)
 	return -ETIMEDOUT;
 }
 
-static void macb_tx_unmap(struct macb *bp, struct macb_tx_skb *tx_skb)
+static void macb_tx_unmap(struct macb *bp, struct macb_tx_skb *tx_skb,
+			  bool in_napi)
 {
 	if (tx_skb->mapping) {
 		if (tx_skb->mapped_as_page)
@@ -672,7 +673,7 @@ static void macb_tx_unmap(struct macb *bp, struct macb_tx_skb *tx_skb)
 	}
 
 	if (tx_skb->skb) {
-		dev_kfree_skb_any(tx_skb->skb);
+		napi_consume_skb(tx_skb->skb, in_napi);
 		tx_skb->skb = NULL;
 	}
 }
@@ -758,7 +759,7 @@ static void macb_tx_error_task(struct work_struct *work)
 		if (ctrl & MACB_BIT(TX_USED)) {
 			/* skb is set for the last buffer of the frame */
 			while (!skb) {
-				macb_tx_unmap(bp, tx_skb);
+				macb_tx_unmap(bp, tx_skb, false);
 				tail++;
 				tx_skb = macb_tx_skb(queue, tail);
 				skb = tx_skb->skb;
@@ -788,7 +789,7 @@ static void macb_tx_error_task(struct work_struct *work)
 			desc->ctrl = ctrl | MACB_BIT(TX_USED);
 		}
 
-		macb_tx_unmap(bp, tx_skb);
+		macb_tx_unmap(bp, tx_skb, false);
 	}
 
 	/* Set end of TX queue */
@@ -820,7 +821,7 @@ static void macb_tx_error_task(struct work_struct *work)
 	spin_unlock_irqrestore(&bp->lock, flags);
 }
 
-static void macb_tx_interrupt(struct macb_queue *queue)
+static void macb_tx_interrupt(struct macb_queue *queue, bool in_napi)
 {
 	unsigned int tail;
 	unsigned int head;
@@ -882,7 +883,7 @@ static void macb_tx_interrupt(struct macb_queue *queue)
 			}
 
 			/* Now we can safely release resources */
-			macb_tx_unmap(bp, tx_skb);
+			macb_tx_unmap(bp, tx_skb, in_napi);
 
 			/* skb is set only for the last buffer of the frame.
 			 * WARNING: at this point skb has been freed by
@@ -1277,7 +1278,7 @@ static int macb_poll(struct napi_struct *napi, int budget)
 	// FIXME: second use of 'queue'
 	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue)
 		if (queue_readl(queue, ISR) & MACB_BIT(TCOMP))
-			macb_tx_interrupt(queue);
+			macb_tx_interrupt(queue, true);
 
 	/* TODO: Handle errors */
 
@@ -1405,7 +1406,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		}
 
 		if (status & MACB_BIT(TCOMP))
-			macb_tx_interrupt(queue);
+			macb_tx_interrupt(queue, false);
 
 		if (status & MACB_BIT(TXUBR))
 			macb_tx_restart(queue);
@@ -1642,7 +1643,7 @@ dma_error:
 	for (i = queue->tx_head; i != tx_head; i++) {
 		tx_skb = macb_tx_skb(queue, i);
 
-		macb_tx_unmap(bp, tx_skb);
+		macb_tx_unmap(bp, tx_skb, false);
 	}
 
 	return 0;
