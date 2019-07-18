@@ -6,6 +6,7 @@
 #ifndef DRIVERS_NET_ETHERNET_TI_CPSW_PRIV_H_
 #define DRIVERS_NET_ETHERNET_TI_CPSW_PRIV_H_
 
+#include <linux/phylink.h>
 #include "davinci_cpdma.h"
 
 #define CPSW_DEBUG	(NETIF_MSG_HW		| NETIF_MSG_WOL		| \
@@ -149,7 +150,6 @@ struct cpsw_wr_regs {
 	u32	mem_allign2[8];
 	u32	rx_imax;
 	u32	tx_imax;
-
 };
 
 struct cpsw_ss_regs {
@@ -272,9 +272,14 @@ struct cpsw_host_regs {
 };
 
 struct cpsw_slave_data {
+	/* We support either using phydev directly, or using phylink. */
+	union {
+		struct device_node    *phy_node;
+		struct phylink_config phylink_config;
+	};
 	struct device_node *slave_node;
-	struct device_node *phy_node;
 	char		phy_id[MII_BUS_ID_SIZE];
+	bool		has_phy_id;
 	int		phy_if;
 	u8		mac_addr[ETH_ALEN];
 	u16		dual_emac_res_vlan;	/* Reserved VLAN for DualEMAC */
@@ -299,10 +304,15 @@ struct cpsw_slave {
 	int				slave_num;
 	u32				mac_control;
 	struct cpsw_slave_data		*data;
-	struct phy_device		*phy;
 	struct net_device		*ndev;
 	u32				port_vlan;
 	struct cpsw_sl			*mac_sl;
+
+	/* We support either using phydev directly, or using phylink. */
+	union {
+		struct phy_device *phy;
+		struct phylink *phylink;
+	};
 };
 
 static inline u32 slave_read(struct cpsw_slave *slave, u32 offset)
