@@ -12,6 +12,7 @@
 #include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
 #include <linux/phy.h>
+#include <linux/phylink.h>
 #include <linux/pm_runtime.h>
 #include <linux/skbuff.h>
 
@@ -304,10 +305,10 @@ void cpsw_get_pauseparam(struct net_device *ndev,
 			 struct ethtool_pauseparam *pause)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	int slave_no = cpsw_slave_index(cpsw, priv);
 
-	pause->autoneg = AUTONEG_DISABLE;
-	pause->rx_pause = priv->rx_pause ? true : false;
-	pause->tx_pause = priv->tx_pause ? true : false;
+	phylink_ethtool_get_pauseparam(cpsw->slaves[slave_no].phylink, pause);
 }
 
 void cpsw_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
@@ -316,11 +317,7 @@ void cpsw_get_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 	struct cpsw_common *cpsw = priv->cpsw;
 	int slave_no = cpsw_slave_index(cpsw, priv);
 
-	wol->supported = 0;
-	wol->wolopts = 0;
-
-	if (cpsw->slaves[slave_no].phy)
-		phy_ethtool_get_wol(cpsw->slaves[slave_no].phy, wol);
+	phylink_ethtool_get_wol(cpsw->slaves[slave_no].phylink, wol);
 }
 
 int cpsw_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
@@ -329,10 +326,7 @@ int cpsw_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 	struct cpsw_common *cpsw = priv->cpsw;
 	int slave_no = cpsw_slave_index(cpsw, priv);
 
-	if (cpsw->slaves[slave_no].phy)
-		return phy_ethtool_set_wol(cpsw->slaves[slave_no].phy, wol);
-	else
-		return -EOPNOTSUPP;
+	return phylink_ethtool_set_wol(cpsw->slaves[slave_no].phylink, wol);
 }
 
 int cpsw_get_regs_len(struct net_device *ndev)
@@ -399,11 +393,8 @@ int cpsw_get_link_ksettings(struct net_device *ndev,
 	struct cpsw_common *cpsw = priv->cpsw;
 	int slave_no = cpsw_slave_index(cpsw, priv);
 
-	if (!cpsw->slaves[slave_no].phy)
-		return -EOPNOTSUPP;
-
-	phy_ethtool_ksettings_get(cpsw->slaves[slave_no].phy, ecmd);
-	return 0;
+	return phylink_ethtool_ksettings_get(cpsw->slaves[slave_no].phylink,
+					     ecmd);
 }
 
 int cpsw_set_link_ksettings(struct net_device *ndev,
@@ -413,10 +404,8 @@ int cpsw_set_link_ksettings(struct net_device *ndev,
 	struct cpsw_common *cpsw = priv->cpsw;
 	int slave_no = cpsw_slave_index(cpsw, priv);
 
-	if (!cpsw->slaves[slave_no].phy)
-		return -EOPNOTSUPP;
-
-	return phy_ethtool_ksettings_set(cpsw->slaves[slave_no].phy, ecmd);
+	return phylink_ethtool_ksettings_set(cpsw->slaves[slave_no].phylink,
+					     ecmd);
 }
 
 int cpsw_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
@@ -425,10 +414,7 @@ int cpsw_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
 	struct cpsw_common *cpsw = priv->cpsw;
 	int slave_no = cpsw_slave_index(cpsw, priv);
 
-	if (cpsw->slaves[slave_no].phy)
-		return phy_ethtool_get_eee(cpsw->slaves[slave_no].phy, edata);
-	else
-		return -EOPNOTSUPP;
+	return phylink_ethtool_get_eee(cpsw->slaves[slave_no].phylink, edata);
 }
 
 int cpsw_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
@@ -437,10 +423,7 @@ int cpsw_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
 	struct cpsw_common *cpsw = priv->cpsw;
 	int slave_no = cpsw_slave_index(cpsw, priv);
 
-	if (cpsw->slaves[slave_no].phy)
-		return phy_ethtool_set_eee(cpsw->slaves[slave_no].phy, edata);
-	else
-		return -EOPNOTSUPP;
+	return phylink_ethtool_set_eee(cpsw->slaves[slave_no].phylink, edata);
 }
 
 int cpsw_nway_reset(struct net_device *ndev)
@@ -449,10 +432,7 @@ int cpsw_nway_reset(struct net_device *ndev)
 	struct cpsw_common *cpsw = priv->cpsw;
 	int slave_no = cpsw_slave_index(cpsw, priv);
 
-	if (cpsw->slaves[slave_no].phy)
-		return genphy_restart_aneg(cpsw->slaves[slave_no].phy);
-	else
-		return -EOPNOTSUPP;
+	return phylink_ethtool_nway_reset(cpsw->slaves[slave_no].phylink);
 }
 
 static void cpsw_suspend_data_pass(struct net_device *ndev)

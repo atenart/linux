@@ -1335,9 +1335,9 @@ static inline void cpsw_add_dual_emac_def_ale_entries(
 
 static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 {
-	u32 slave_port;
-	struct phy_device *phy;
 	struct cpsw_common *cpsw = priv->cpsw;
+	u32 slave_port;
+	int ret;
 
 	cpsw_sl_reset(slave->mac_sl, 100);
 	cpsw_sl_ctl_reset(slave->mac_sl);
@@ -1384,40 +1384,34 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 		cpsw_ale_add_mcast(cpsw->ale, priv->ndev->broadcast,
 				   1 << slave_port, 0, 0, ALE_MCAST_FWD_2);
 
-	if (slave->data->phy_node) {
-		phy = of_phy_connect(priv->ndev, slave->data->phy_node,
-				 &cpsw_adjust_link, 0, slave->data->phy_if);
-		if (!phy) {
-			dev_err(priv->dev, "phy \"%pOF\" not found on slave %d\n",
-				slave->data->phy_node,
-				slave->slave_num);
-			return;
-		}
-	} else {
-		phy = phy_connect(priv->ndev, slave->data->phy_id,
-				 &cpsw_adjust_link, slave->data->phy_if);
-		if (IS_ERR(phy)) {
-			dev_err(priv->dev,
-				"phy \"%s\" not found on slave %d, err %ld\n",
-				slave->data->phy_id, slave->slave_num,
-				PTR_ERR(phy));
-			return;
-		}
-	}
-
-	slave->phy = phy;
-
-	phy_attached_info(slave->phy);
-
-	phy_start(slave->phy);
-
 	/* Configure GMII_SEL register */
 	if (!IS_ERR(slave->data->ifphy))
 		phy_set_mode_ext(slave->data->ifphy, PHY_MODE_ETHERNET,
 				 slave->data->phy_if);
 	else
-		cpsw_phy_sel(cpsw->dev, slave->phy->interface,
-			     slave->slave_num);
+		cpsw_phy_sel(cpsw->dev, slave->data->phy_if, slave->slave_num);
+
+	/* Support old phy_id mode for dt backward compatibility */
+	if (!slave->data->has_phy_id) {
+		ret = phylink_of_phy_connect(slave->phylink,
+					     slave->data->slave_node, 0);
+		if (ret)
+			netdev_err(slave->ndev, "could not attach PHY: %d\n", ret);
+	} else {
+		struct device *d = bus_find_device_by_name(&mdio_bus_type, NULL,
+							   slave->data->phy_id);
+
+		if (!d) {
+			pr_err("PHY %s not found\n", slave->data->phy_id);
+			return;
+		}
+
+		ret = phylink_connect_phy(slave->phylink, to_phy_device(d));
+		if (ret)
+			netdev_err(slave->ndev, "could not attach PHY: %d\n", ret);
+	}
+
+	phylink_start(slave->phylink);
 }
 
 static inline void cpsw_add_default_vlan(struct cpsw_priv *priv)
@@ -1533,12 +1527,10 @@ static void cpsw_slave_stop(struct cpsw_slave *slave, struct cpsw_common *cpsw)
 
 	slave_port = cpsw_get_slave_port(slave->slave_num);
 
-	if (!slave->phy)
-		return;
-	phy_stop(slave->phy);
-	phy_disconnect(slave->phy);
-	slave->phy = NULL;
-	cpsw_ale_control_set(cpsw->ale, slave_port,
+	phylink_stop(slave->phylink);
+	phylink_disconnect_phy(slave->phylink);
+
+	cpsw_ale_control_set(cpsw->ale, cpsw_get_slave_port(slave_port),
 			     ALE_PORT_STATE, ALE_PORT_STATE_DISABLE);
 	cpsw_sl_reset(slave->mac_sl, 100);
 	cpsw_sl_ctl_reset(slave->mac_sl);
@@ -2166,7 +2158,7 @@ static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 
 	if (!cpsw->slaves[slave_no].phy)
 		return -EOPNOTSUPP;
-	return phy_mii_ioctl(cpsw->slaves[slave_no].phy, req, cmd);
+	return phylink_mii_ioctl(cpsw->slaves[slave_no].phylink, req, cmd);
 }
 
 static void cpsw_ndo_tx_timeout(struct net_device *ndev)
@@ -2577,13 +2569,11 @@ static int cpsw_set_pauseparam(struct net_device *ndev,
 			       struct ethtool_pauseparam *pause)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
-	bool link;
+	struct cpsw_common *cpsw = priv->cpsw;
+	int slave_no = cpsw_slave_index(cpsw, priv);
 
-	priv->rx_pause = pause->rx_pause ? true : false;
-	priv->tx_pause = pause->tx_pause ? true : false;
-
-	for_each_slave(priv, _cpsw_adjust_link, priv, &link);
-	return 0;
+	return phylink_ethtool_set_pauseparam(cpsw->slaves[slave_no].phylink,
+					      pause);
 }
 
 static int cpsw_set_channels(struct net_device *ndev,
@@ -2689,14 +2679,16 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 
 	for_each_available_child_of_node(node, slave_node) {
 		struct cpsw_slave_data *slave_data = data->slave_data + i;
+		struct platform_device *mdio;
 		const void *mac_addr = NULL;
-		int lenp;
 		const __be32 *parp;
+		int lenp;
 
 		/* This is no slave child node, continue */
 		if (!of_node_name_eq(slave_node, "slave"))
 			continue;
 
+		slave_data->slave_node = slave_node;
 		slave_data->ifphy = devm_of_phy_get(&pdev->dev, slave_node,
 						    NULL);
 		if (!IS_ENABLED(CONFIG_TI_CPSW_PHY_SEL) &&
@@ -2707,34 +2699,17 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			goto err_node_put;
 		}
 
-		slave_data->slave_node = slave_node;
-		slave_data->phy_node = of_parse_phandle(slave_node,
-							"phy-handle", 0);
+		/* Support the deprecated phy_id property. */
 		parp = of_get_property(slave_node, "phy_id", &lenp);
-		if (slave_data->phy_node) {
-			dev_dbg(&pdev->dev,
-				"slave[%d] using phy-handle=\"%pOF\"\n",
-				i, slave_data->phy_node);
-		} else if (of_phy_is_fixed_link(slave_node)) {
-			/* In the case of a fixed PHY, the DT node associated
-			 * to the PHY is the Ethernet MAC DT node.
-			 */
-			ret = of_phy_register_fixed_link(slave_node);
-			if (ret) {
-				if (ret != -EPROBE_DEFER)
-					dev_err(&pdev->dev, "failed to register fixed-link phy: %d\n", ret);
-				goto err_node_put;
-			}
-			slave_data->phy_node = of_node_get(slave_node);
-		} else if (parp) {
-			u32 phyid;
+		if (parp) {
 			struct device_node *mdio_node;
-			struct platform_device *mdio;
+			u32 phyid;
 
 			if (lenp != (sizeof(__be32) * 2)) {
 				dev_err(&pdev->dev, "Invalid slave[%d] phy_id property\n", i);
 				goto no_phy_slave;
 			}
+
 			mdio_node = of_find_node_by_phandle(be32_to_cpup(parp));
 			phyid = be32_to_cpup(parp+1);
 			mdio = of_find_device_by_node(mdio_node);
@@ -2747,12 +2722,11 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
 				 PHY_ID_FMT, mdio->name, phyid);
 			put_device(&mdio->dev);
-		} else {
-			dev_err(&pdev->dev,
-				"No slave[%d] phy_id, phy-handle, or fixed-link property\n",
-				i);
-			goto no_phy_slave;
+
+			slave_data->has_phy_id = true;
 		}
+
+no_phy_slave:
 		slave_data->phy_if = of_get_phy_mode(slave_node);
 		if (slave_data->phy_if < 0) {
 			dev_err(&pdev->dev, "Missing or malformed slave[%d] phy-mode property\n",
@@ -2761,7 +2735,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 			goto err_node_put;
 		}
 
-no_phy_slave:
 		mac_addr = of_get_mac_address(slave_node);
 		if (!IS_ERR(mac_addr)) {
 			ether_addr_copy(slave_data->mac_addr, mac_addr);
@@ -2806,15 +2779,8 @@ static void cpsw_remove_dt(struct platform_device *pdev)
 	int i = 0;
 
 	for_each_available_child_of_node(node, slave_node) {
-		struct cpsw_slave_data *slave_data = &data->slave_data[i];
-
 		if (!of_node_name_eq(slave_node, "slave"))
 			continue;
-
-		if (of_phy_is_fixed_link(slave_node))
-			of_phy_deregister_fixed_link(slave_node);
-
-		of_node_put(slave_data->phy_node);
 
 		i++;
 		if (i == data->slaves) {
@@ -2893,6 +2859,7 @@ static const struct soc_device_attribute cpsw_soc_devices[] = {
 static int cpsw_probe(struct platform_device *pdev)
 {
 	struct device			*dev = &pdev->dev;
+	struct fwnode_handle            *slave_fwnode, *fwnode;
 	struct clk			*clk;
 	struct cpsw_platform_data	*data;
 	struct net_device		*ndev;
@@ -2902,7 +2869,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	struct gpio_descs		*mode;
 	const struct soc_device_attribute *soc;
 	struct cpsw_common		*cpsw;
-	int ret = 0, ch;
+	int ret = 0, ch, i = 0;
 	int irq;
 
 	cpsw = devm_kzalloc(dev, sizeof(struct cpsw_common), GFP_KERNEL);
@@ -3061,6 +3028,27 @@ static int cpsw_probe(struct platform_device *pdev)
 		}
 	}
 
+	fwnode = pdev->dev.fwnode;
+	fwnode_for_each_available_child_node(fwnode, slave_fwnode) {
+		struct cpsw_slave *slave = &cpsw->slaves[i];
+		struct phylink *phylink;
+
+		if (i >= cpsw->data.slaves)
+			break;
+
+		slave->data->phylink_config.dev = &slave->ndev->dev;
+		slave->data->phylink_config.type = PHYLINK_NETDEV;
+
+		phylink = phylink_create(&slave->data->phylink_config,
+					 slave_fwnode, slave->data->phy_if,
+					 &cpsw_phylink_ops);
+		if (IS_ERR(phylink))
+			goto clean_unregister_netdev_ret;
+
+		slave->phylink = phylink;
+		i++;
+	}
+
 	/* Grab RX and TX IRQs. Note that we also have RX_THRESHOLD and
 	 * MISC IRQs which are always kept disabled with this driver so
 	 * we will not request them.
@@ -3072,7 +3060,7 @@ static int cpsw_probe(struct platform_device *pdev)
 			       0, dev_name(dev), cpsw);
 	if (ret < 0) {
 		dev_err(dev, "error attaching irq (%d)\n", ret);
-		goto clean_unregister_netdev_ret;
+		goto clean_phylink_ret;
 	}
 
 
@@ -3080,7 +3068,7 @@ static int cpsw_probe(struct platform_device *pdev)
 			       0, dev_name(&pdev->dev), cpsw);
 	if (ret < 0) {
 		dev_err(dev, "error attaching irq (%d)\n", ret);
-		goto clean_unregister_netdev_ret;
+		goto clean_phylink_ret;
 	}
 
 	cpsw_notice(priv, probe,
@@ -3091,6 +3079,9 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	return 0;
 
+clean_phylink_ret:
+	for (i = 0; i < cpsw->data.slaves; i++)
+		phylink_destroy(cpsw->slaves[i].phylink);
 clean_unregister_netdev_ret:
 	unregister_netdev(ndev);
 clean_cpts:
@@ -3115,9 +3106,12 @@ static int cpsw_remove(struct platform_device *pdev)
 		return ret;
 	}
 
-	for (i = 0; i < cpsw->data.slaves; i++)
+	for (i = 0; i < cpsw->data.slaves; i++) {
 		if (cpsw->slaves[i].ndev)
 			unregister_netdev(cpsw->slaves[i].ndev);
+
+		phylink_destroy(cpsw->slaves[i].phylink);
+	}
 
 	cpts_release(cpsw->cpts);
 	cpdma_ctlr_destroy(cpsw->dma);
