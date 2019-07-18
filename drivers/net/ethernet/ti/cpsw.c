@@ -20,6 +20,7 @@
 #include <linux/net_tstamp.h>
 #include <linux/phy.h>
 #include <linux/phy/phy.h>
+#include <linux/phylink.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
@@ -1176,6 +1177,139 @@ static void cpsw_adjust_link(struct net_device *ndev)
 		netif_tx_stop_all_queues(ndev);
 	}
 }
+
+static void cpsw_validate(struct phylink_config *config,
+			  unsigned long *supported,
+			  struct phylink_link_state *state)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
+
+	/* We only support MII, RMII & RGMII. */
+	if (state->interface != PHY_INTERFACE_MODE_NA &&
+	    state->interface != PHY_INTERFACE_MODE_MII &&
+	    state->interface != PHY_INTERFACE_MODE_RMII &&
+	    !phy_interface_mode_is_rgmii(state->interface)) {
+		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
+		return;
+	}
+
+	phylink_set_port_modes(mask);
+	phylink_set(mask, Pause);
+	phylink_set(mask, Asym_Pause);
+
+	if (state->interface == PHY_INTERFACE_MODE_MII ||
+	    phy_interface_mode_is_rgmii(state->interface)) {
+		phylink_set(mask, 10baseT_Half);
+		phylink_set(mask, 10baseT_Full);
+		phylink_set(mask, 100baseT_Half);
+		phylink_set(mask, 100baseT_Full);
+	}
+
+	/* Half-duplex at > 100M isn't supported. */
+	if (state->interface == PHY_INTERFACE_MODE_RMII ||
+	    phy_interface_mode_is_rgmii(state->interface)) {
+		phylink_set(mask, 1000baseT_Full);
+		phylink_set(mask, 1000baseX_Full);
+	}
+
+	bitmap_and(supported, supported, mask, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	bitmap_and(state->advertising, state->advertising, mask,
+		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+}
+
+static int cpsw_mac_link_state(struct phylink_config *config,
+			       struct phylink_link_state *state)
+{
+	return -EOPNOTSUPP;
+}
+
+static void cpsw_mac_an_restart(struct phylink_config *config)
+{
+	/* Not supported */
+}
+
+static void cpsw_mac_config(struct phylink_config *config, unsigned int mode,
+			    const struct phylink_link_state *state)
+{
+	struct net_device *ndev = to_net_dev(config->dev);
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	unsigned int port = cpsw_slave_index(cpsw, priv);
+	struct cpsw_slave *slave = &cpsw->slaves[port];
+	u32 ctrl = slave->mac_control;
+
+	ctrl |= CPSW_SL_CTL_GMII_EN;
+	ctrl &= ~(CPSW_SL_CTL_GIG | CPSW_SL_CTL_IFCTL_A | CPSW_SL_CTL_EXT_EN |
+		  CPSW_SL_CTL_FULLDUPLEX | CPSW_SL_CTL_RX_FLOW_EN |
+		  CPSW_SL_CTL_TX_FLOW_EN);
+
+	if (state->speed == SPEED_1000)
+		ctrl |= CPSW_SL_CTL_GIG;
+	else if (state->speed == SPEED_100)
+		ctrl |= CPSW_SL_CTL_IFCTL_A;
+	/* In-band mode only works in 10Mbps RGMII mode. */
+	else if (state->speed == SPEED_10 &&
+		 phy_interface_mode_is_rgmii(state->interface))
+		ctrl |= CPSW_SL_CTL_EXT_EN;
+
+	if (state->duplex)
+		ctrl |= CPSW_SL_CTL_FULLDUPLEX;
+
+	if (state->pause & MLO_PAUSE_RX)
+		ctrl |= CPSW_SL_CTL_RX_FLOW_EN;
+	if (state->pause & MLO_PAUSE_TX)
+		ctrl |= CPSW_SL_CTL_TX_FLOW_EN;
+
+	/* Apply changes if any. */
+	if (slave->mac_control != ctrl) {
+		cpsw_sl_ctl_set(slave->mac_sl, ctrl);
+		slave->mac_control = ctrl;
+	}
+
+	if (cpsw_need_resplit(cpsw))
+		cpsw_split_res(cpsw);
+}
+
+static void cpsw_mac_link_down(struct phylink_config *config, unsigned int mode,
+			       phy_interface_t interface)
+{
+	struct net_device *ndev = to_net_dev(config->dev);
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	unsigned int port = cpsw_slave_index(cpsw, priv);
+	struct cpsw_slave *slave = &cpsw->slaves[port];
+
+	netif_tx_stop_all_queues(ndev);
+
+	/* Disable forwarding */
+	cpsw_ale_control_set(cpsw->ale, cpsw_get_slave_port(port),
+			     ALE_PORT_STATE, ALE_PORT_STATE_DISABLE);
+	cpsw_sl_wait_for_idle(slave->mac_sl, 100);
+}
+
+static void cpsw_mac_link_up(struct phylink_config *config, unsigned int mode,
+			     phy_interface_t interface, struct phy_device *phy)
+{
+	struct net_device *ndev = to_net_dev(config->dev);
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	unsigned int port = cpsw_slave_index(cpsw, priv);
+
+	/* Enable forwarding */
+	cpsw_ale_control_set(cpsw->ale, cpsw_get_slave_port(port),
+			     ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
+
+	netif_tx_wake_all_queues(ndev);
+}
+
+static const struct phylink_mac_ops cpsw_phylink_ops = {
+	.validate = cpsw_validate,
+	.mac_link_state = cpsw_mac_link_state,
+	.mac_an_restart = cpsw_mac_an_restart,
+	.mac_config = cpsw_mac_config,
+	.mac_link_down = cpsw_mac_link_down,
+	.mac_link_up = cpsw_mac_link_up,
+};
 
 static inline void cpsw_add_dual_emac_def_ale_entries(
 		struct cpsw_priv *priv, struct cpsw_slave *slave,
