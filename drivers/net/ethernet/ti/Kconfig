@@ -48,6 +48,7 @@ config TI_CPSW_PHY_SEL
 config TI_CPSW
 	tristate "TI CPSW Switch Support"
 	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || COMPILE_TEST
+	select PHYLINK
 	select TI_DAVINCI_MDIO
 	select MFD_SYSCON
 	select PAGE_POOL
