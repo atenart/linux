@@ -1054,71 +1054,6 @@ static void cpsw_fifo_shp_on(struct cpsw_priv *priv, int fifo, int on)
 	writel_relaxed(val, &cpsw->regs->ptype);
 }
 
-static void _cpsw_adjust_link(struct cpsw_slave *slave,
-			      struct cpsw_priv *priv, bool *link)
-{
-	struct phy_device	*phy = slave->phy;
-	u32			mac_control = 0;
-	u32			slave_port;
-	struct cpsw_common *cpsw = priv->cpsw;
-
-	if (!phy)
-		return;
-
-	slave_port = cpsw_get_slave_port(slave->slave_num);
-
-	if (phy->link) {
-		mac_control = CPSW_SL_CTL_GMII_EN;
-
-		if (phy->speed == 1000)
-			mac_control |= CPSW_SL_CTL_GIG;
-		if (phy->duplex)
-			mac_control |= CPSW_SL_CTL_FULLDUPLEX;
-
-		/* set speed_in input in case RMII mode is used in 100Mbps */
-		if (phy->speed == 100)
-			mac_control |= CPSW_SL_CTL_IFCTL_A;
-		/* in band mode only works in 10Mbps RGMII mode */
-		else if ((phy->speed == 10) && phy_interface_is_rgmii(phy))
-			mac_control |= CPSW_SL_CTL_EXT_EN; /* In Band mode */
-
-		if (priv->rx_pause)
-			mac_control |= CPSW_SL_CTL_RX_FLOW_EN;
-
-		if (priv->tx_pause)
-			mac_control |= CPSW_SL_CTL_TX_FLOW_EN;
-
-		if (mac_control != slave->mac_control)
-			cpsw_sl_ctl_set(slave->mac_sl, mac_control);
-
-		/* enable forwarding */
-		cpsw_ale_control_set(cpsw->ale, slave_port,
-				     ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
-
-		*link = true;
-
-		if (priv->shp_cfg_speed &&
-		    priv->shp_cfg_speed != slave->phy->speed &&
-		    !cpsw_shp_is_off(priv))
-			dev_warn(priv->dev,
-				 "Speed was changed, CBS shaper speeds are changed!");
-	} else {
-		mac_control = 0;
-		/* disable forwarding */
-		cpsw_ale_control_set(cpsw->ale, slave_port,
-				     ALE_PORT_STATE, ALE_PORT_STATE_DISABLE);
-
-		cpsw_sl_wait_for_idle(slave->mac_sl, 100);
-
-		cpsw_sl_ctl_reset(slave->mac_sl);
-	}
-
-	if (mac_control != slave->mac_control)
-		phy_print_status(phy);
-
-	slave->mac_control = mac_control;
-}
-
 static int cpsw_get_common_speed(struct cpsw_common *cpsw)
 {
 	int i, speed;
@@ -1155,27 +1090,6 @@ static int cpsw_need_resplit(struct cpsw_common *cpsw)
 		return 0;
 
 	return 1;
-}
-
-static void cpsw_adjust_link(struct net_device *ndev)
-{
-	struct cpsw_priv	*priv = netdev_priv(ndev);
-	struct cpsw_common	*cpsw = priv->cpsw;
-	bool			link = false;
-
-	for_each_slave(priv, _cpsw_adjust_link, priv, &link);
-
-	if (link) {
-		if (cpsw_need_resplit(cpsw))
-			cpsw_split_res(cpsw);
-
-		netif_carrier_on(ndev);
-		if (netif_running(ndev))
-			netif_tx_wake_all_queues(ndev);
-	} else {
-		netif_carrier_off(ndev);
-		netif_tx_stop_all_queues(ndev);
-	}
 }
 
 static void cpsw_validate(struct phylink_config *config,
